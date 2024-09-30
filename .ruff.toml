@@ -1,0 +1,101 @@
+exclude = [
+  ".bzr",
+  ".direnv",
+  ".eggs",
+  ".git",
+  ".git-rewrite",
+  ".hg",
+  ".mypy_cache",
+  ".nox",
+  ".pants.d",
+  ".pytype",
+  ".ruff_cache",
+  ".svn",
+  ".tox",
+  ".venv",
+  "__pypackages__",
+  "_build",
+  "buck-out",
+  "build",
+  "dist",
+  "node_modules",
+  "venv",
+]
+
+line-length = 100
+indent-width = 4
+
+target-version = "py312"
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+
+[lint]
+select = [
+  "E",
+  "W",
+  "F",
+  "PL",
+  "S",
+  "B",
+  "D",
+  "N",
+  "ANN",
+  "ASYNC",
+  "BLE001",
+  "FBT",
+  "A",
+  "COM",
+  "C4",
+  "DTZ",
+  "EM",
+  "ISC",
+  "ICN",
+  "G",
+  "PIE",
+  "T20",
+  "PT",
+  "RET",
+  "SLF",
+  "SIM",
+  "ARG",
+  "PTH",
+  "ERA",
+  "RUF006",
+  "RUF013",
+  "RUF100",
+]
+ignore = [
+  "D212",
+  "D203",
+  "D105",
+  "D107",
+  "ANN002",
+  "ANN003",
+  "ANN101",
+  "ANN102",
+  "ANN401",
+  "PLR0913",
+]
+
+[lint.pycodestyle]
+max-line-length = 100
+ignore-overlong-task-comments = false
+
+[lint.pydocstyle]
+convention = "google"
+
+[lint.flake8-quotes]
+docstring-quotes = "double"
+
+[lint.flake8-annotations]
+suppress-none-returning = true
+
+[lint.flake8-builtins]
+builtins-ignorelist = ["id"]
+
+[lint.extend-per-file-ignores]
+"__init__.py" = ["F401"]
+"test*.py" = ["S101"]

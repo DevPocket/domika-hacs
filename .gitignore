@@ -1,0 +1,13 @@
+.DS_Store
+.vscode
+.pytest_cache
+
+**/__pycache__
+**/package.json
+.env
+
+# File-based project format
+*.iws
+.idea/**
+/tests/Domika.db
+/tests/domika.json
