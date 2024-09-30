@@ -1,6 +1,4 @@
 {
-  "domain": "domika",
-  "name": "Domika",
   "codeowners": ["@bealex", "@bmikle"],
   "config_flow": true,
   "dependencies": [
@@ -14,12 +12,13 @@
     "sensor",
     "websocket_api"
   ],
+  "documentation": "https://github.com/DevPocket/domika-hacs/blob/main/README.md",
+  "domain": "domika",
   "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/DevPocket/domika-hacs/issues",
   "loggers": ["domika"],
+  "name": "Domika",
   "requirements": ["domika-ha-framework==0.0.4"],
   "single_config_entry": true,
-
-  "documentation": "https://github.com/DevPocket/domika-hacs/blob/main/README.md",
-  "issue_tracker": "https://github.com/DevPocket/domika-hacs/issues",
   "version": "1.0"
 }
