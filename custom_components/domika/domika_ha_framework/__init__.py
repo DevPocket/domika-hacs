@@ -9,8 +9,8 @@ Author(s): Artem Bezborodko
 """
 
 import config
-import database.core as database_core
-import database.manage as database_manage
+from .database import core as database_core
+from .database import manage as database_manage
 
 
 async def init(cfg: config.Config):
