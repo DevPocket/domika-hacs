@@ -2,14 +2,14 @@
 
 from typing import Any, cast
 
-from domika_ha_framework.dashboard.models import (
+from ..domika_ha_framework.dashboard.models import (
     DomikaDashboardCreate,
     DomikaDashboardRead,
 )
-import domika_ha_framework.dashboard.service as dashboard_service
-import domika_ha_framework.database.core as database_core
-import domika_ha_framework.device.service as device_service
-from domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..domika_ha_framework.dashboard import service as dashboard_service
+from ..domika_ha_framework.database import core as database_core
+from ..domika_ha_framework.device import service as device_service
+from ..domika_ha_framework.errors import DomikaFrameworkBaseError
 import voluptuous as vol
 
 from homeassistant.components.websocket_api import (

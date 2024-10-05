@@ -3,10 +3,10 @@
 from typing import Any, cast
 import uuid
 
-import domika_ha_framework.database.core as database_core
-from domika_ha_framework.errors import DomikaFrameworkBaseError
-import domika_ha_framework.subscription.flow as subscription_flow
-from domika_ha_framework.utils import flatten_json
+from ..domika_ha_framework.database import core as database_core
+from ..domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..domika_ha_framework.subscription import flow as subscription_flow
+from ..domika_ha_framework.utils import flatten_json
 import voluptuous as vol
 
 from homeassistant.components.websocket_api import (

@@ -2,7 +2,7 @@
 
 from typing import Any, cast
 
-from domika_ha_framework.utils import flatten_json
+from ..domika_ha_framework.utils import flatten_json
 import voluptuous as vol
 
 from homeassistant.components.websocket_api import (

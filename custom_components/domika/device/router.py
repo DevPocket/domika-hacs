@@ -4,11 +4,11 @@ import contextlib
 from typing import Any, cast
 import uuid
 
-from domika_ha_framework import errors, push_server_errors
-import domika_ha_framework.database.core as database_core
-import domika_ha_framework.device.flow as device_flow
-import domika_ha_framework.device.service as device_service
-from domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..domika_ha_framework import errors, push_server_errors
+from ..domika_ha_framework.database import core as database_core
+from ..domika_ha_framework.device import flow as device_flow
+from ..domika_ha_framework.device import service as device_service
+from ..domika_ha_framework.errors import DomikaFrameworkBaseError
 from hass_nabucasa import Cloud
 import voluptuous as vol
 

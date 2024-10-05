@@ -4,15 +4,15 @@ from collections.abc import Sequence
 import logging
 import uuid
 
-import domika_ha_framework.database.core as database_core
-from domika_ha_framework.errors import DomikaFrameworkBaseError
-import domika_ha_framework.push_data.flow as push_data_flow
-from domika_ha_framework.push_data.models import (
+from ..domika_ha_framework.database import core as database_core
+from ..domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..domika_ha_framework.push_data import flow as push_data_flow
+from ..domika_ha_framework.push_data.models import (
     DomikaPushDataCreate,
     DomikaPushedEvents,
 )
-import domika_ha_framework.subscription.flow as subscription_flow
-from domika_ha_framework.utils import flatten_json
+from ..domika_ha_framework.subscription import flow as subscription_flow
+from ..domika_ha_framework.utils import flatten_json
 
 from homeassistant.const import ATTR_DEVICE_CLASS
 from homeassistant.core import (

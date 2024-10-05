@@ -2,14 +2,14 @@
 
 from typing import Any, cast
 
-from domika_ha_framework.key_value_storage.models import (
+from ..domika_ha_framework.key_value_storage.models import (
     DomikaKeyValueCreate,
     DomikaKeyValueRead,
     KeyValue,
 )
-import domika_ha_framework.key_value_storage.service as key_value_service
-import domika_ha_framework.database.core as database_core
-from domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..domika_ha_framework.key_value_storage import service as key_value_service
+from ..domika_ha_framework.database import core as database_core
+from ..domika_ha_framework.errors import DomikaFrameworkBaseError
 import voluptuous as vol
 
 from homeassistant.components.websocket_api import (

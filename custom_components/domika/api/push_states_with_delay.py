@@ -6,9 +6,9 @@ from typing import Any
 import uuid
 
 from aiohttp import web
-import domika_ha_framework.database.core as database_core
-from domika_ha_framework.errors import DomikaFrameworkBaseError
-import domika_ha_framework.push_data.service as push_data_service
+from ..domika_ha_framework.database import core as database_core
+from ..domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..domika_ha_framework.push_data import service as push_data_service
 
 from homeassistant.core import async_get_hass
 from homeassistant.helpers.http import HomeAssistantView

@@ -3,8 +3,8 @@
 from collections.abc import Sequence
 import uuid
 
-import domika_ha_framework.subscription.service as subscription_service
-from domika_ha_framework.utils import flatten_json
+from ..domika_ha_framework.subscription import service as subscription_service
+from ..domika_ha_framework.utils import flatten_json
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from homeassistant.core import async_get_hass
