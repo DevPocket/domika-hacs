@@ -7,7 +7,6 @@ from functools import partial
 import os
 
 from aiohttp import ClientTimeout
-import domika_ha_framework
 from domika_ha_framework import config
 
 from homeassistant.components import websocket_api
@@ -37,6 +36,7 @@ from .device import router as device_router
 from .entity import router as entity_router
 from .ha_event import flow as ha_event_flow, router as ha_event_router
 from .subscription import router as subscription_router
+from .key_value_storage import router as key_value_router
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
@@ -137,6 +137,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     websocket_api.async_register_command(
         hass,
         entity_router.websocket_domika_entity_state,
+    )
+    websocket_api.async_register_command(
+        hass,
+        key_value_router.websocket_domika_store_value,
+    )
+    websocket_api.async_register_command(
+        hass,
+        key_value_router.websocket_domika_get_value,
     )
 
     # Register config update callback.

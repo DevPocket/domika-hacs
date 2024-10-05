@@ -8,9 +8,9 @@ domika-ha-framework.
 Author(s): Artem Bezborodko
 """
 
-from domika_ha_framework import config
-from domika_ha_framework.database import core as database_core
-from domika_ha_framework.database import manage as database_manage
+import config
+import database.core as database_core
+import database.manage as database_manage
 
 
 async def init(cfg: config.Config):

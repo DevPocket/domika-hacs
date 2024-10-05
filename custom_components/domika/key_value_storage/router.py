@@ -130,7 +130,7 @@ async def _get_value(
     },
 )
 @async_response
-async def websocket_domika_get_dashboards(
+async def websocket_domika_get_value(
     hass: HomeAssistant,
     connection: ActiveConnection,
     msg: dict[str, Any],
