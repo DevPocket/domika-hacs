@@ -102,10 +102,8 @@ async def _get_value(
         async with database_core.get_session() as session:
             key_value: KeyValue = await key_value_service.get(
                 session,
-                DomikaKeyValueRead(
-                    user_id=user_id,
-                    key=key,
-                ),
+                user_id=user_id,
+                key=key,
             )
             return key_value.value if key_value else None
     except DomikaFrameworkBaseError as e:
