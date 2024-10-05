@@ -41,6 +41,8 @@ class DomikaKeyValueCreate(DomikaKeyValueBase):
 
 
 @dataclass
-class DomikaKeyValueRead(DomikaKeyValueBase):
+class DomikaKeyValueRead(DataClassJSONMixin):
     """Key-value read model."""
+    user_id: str
+    key: str
 
