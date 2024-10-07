@@ -52,6 +52,7 @@ async def _store_value(
                     f"domika_{device.app_session_id}",
                     {
                         "d.type": "key_value_update",
+                        "key": key,
                         "hash": value_hash,
                     },
                 )
