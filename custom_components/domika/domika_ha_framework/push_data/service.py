@@ -110,6 +110,7 @@ async def create(
             "value": stmt.excluded.value,
             "timestamp": stmt.excluded.timestamp,
         },
+        where=PushData.timestamp < stmt.excluded.timestamp,
     )
 
     try:
