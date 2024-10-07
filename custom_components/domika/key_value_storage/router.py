@@ -190,12 +190,12 @@ async def websocket_domika_get_value(
 
 @websocket_command(
     {
-        vol.Required("type"): "domika/get_hash",
+        vol.Required("type"): "domika/get_value_hash",
         vol.Required("key"): str,
     },
 )
 @async_response
-async def websocket_domika_get_hash(
+async def websocket_domika_get_value_hash(
     _hass: HomeAssistant,
     connection: ActiveConnection,
     msg: dict[str, Any],
@@ -203,22 +203,22 @@ async def websocket_domika_get_hash(
     """Handle domika get value hash request."""
     msg_id: int | None = msg.get("id")
     if msg_id is None:
-        LOGGER.error('Got websocket message "get_hash", msg_id is missing')
+        LOGGER.error('Got websocket message "get_value_hash", msg_id is missing')
         return
 
     LOGGER.debug(
-        'Got websocket message "get_hash", user: "%s", key: %s',
+        'Got websocket message "get_value_hash", user: "%s", key: %s',
         connection.user.id,
         msg.get("key"),
     )
 
     key: str | None = msg.get("key")
     if key is None:
-        LOGGER.error('Got websocket message "get_hash", key is missing')
+        LOGGER.error('Got websocket message "get_value_hash", key is missing')
         return
 
     key_value: KeyValue | None = await _get_value(key, connection.user.id)
     result = {"hash": key_value.hash} if key_value else {}
 
     connection.send_result(msg_id, result)
-    LOGGER.debug("get_hash msg_id=%s data=%s", msg_id, result)
+    LOGGER.debug("get_value_hash msg_id=%s data=%s", msg_id, result)

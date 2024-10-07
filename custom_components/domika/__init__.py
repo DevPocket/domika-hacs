@@ -135,7 +135,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     websocket_api.async_register_command(
         hass,
-        key_value_router.websocket_domika_get_hash,
+        key_value_router.websocket_domika_get_value_hash,
     )
 
     # Register config update callback.
@@ -173,7 +173,7 @@ async def async_unload_entry(hass: HomeAssistant, _entry: ConfigEntry) -> bool:
     websocket_api_handlers.pop("domika/entity_state", None)
     websocket_api_handlers.pop("domika/store_value", None)
     websocket_api_handlers.pop("domika/get_value", None)
-    websocket_api_handlers.pop("domika/get_hash", None)
+    websocket_api_handlers.pop("domika/get_value_hash", None)
 
     # Unsubscribe from events.
     if domika_data := hass.data.get(DOMAIN):
