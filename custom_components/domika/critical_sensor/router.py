@@ -4,12 +4,12 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.components.websocket_api import ActiveConnection, websocket_command
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.components.websocket_api import ActiveConnection, websocket_command, async_response
+from homeassistant.core import HomeAssistant
 
-from ..const import LOGGER
+from ..const import LOGGER, SMILEY_HIDDEN_IDS_KEY, SMILEY_HIDDEN_IDS_HASH_KEY
 from .enums import NotificationType
-from .service import get
+from .service import get_with_smiley
 
 
 @websocket_command(
@@ -17,8 +17,8 @@ from .service import get
         vol.Required("type"): "domika/critical_sensors",
     },
 )
-@callback
-def websocket_domika_critical_sensors(
+@async_response
+async def websocket_domika_critical_sensors(
     hass: HomeAssistant,
     connection: ActiveConnection,
     msg: dict[str, Any],
@@ -31,8 +31,13 @@ def websocket_domika_critical_sensors(
 
     LOGGER.debug('Got websocket message "critical_sensors", data: %s', msg)
 
-    sensors_data = get(hass, NotificationType.ANY)
-    result = sensors_data.to_dict()
+    result = await get_with_smiley(
+        hass,
+        NotificationType.ANY,
+        connection.user.id,
+        SMILEY_HIDDEN_IDS_KEY,
+        SMILEY_HIDDEN_IDS_HASH_KEY
+    )
 
     connection.send_result(msg_id, result)
     LOGGER.debug("Critical_sensors msg_id=%s data=%s", msg_id, result)

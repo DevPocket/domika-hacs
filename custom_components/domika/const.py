@@ -65,3 +65,6 @@ CRITICAL_PUSH_ALERT_STRINGS = {
     BinarySensorDeviceClass.MOISTURE: "push_sensor_moisture",
     BinarySensorDeviceClass.SMOKE: "push_sensor_smoke",
 }
+
+SMILEY_HIDDEN_IDS_KEY = "_smileyHiddenIds"
+SMILEY_HIDDEN_IDS_HASH_KEY = "_smileyHiddenIds_hash"

@@ -7,6 +7,9 @@ from homeassistant.const import ATTR_DEVICE_CLASS, STATE_ON
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_registry import RegistryEntry
+from ..domika_ha_framework.database import core as database_core
+from ..domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..domika_ha_framework.key_value_storage import service as key_value_service
 
 from ..const import (
     CRITICAL_NOTIFICATION_DEVICE_CLASSES,
@@ -14,9 +17,11 @@ from ..const import (
     DOMAIN,
     SENSORS_DOMAIN,
     WARNING_NOTIFICATION_DEVICE_CLASSES,
+    LOGGER,
 )
 from .enums import NotificationType
 from .models import DomikaNotificationSensor, DomikaNotificationSensorsRead
+from ..domika_ha_framework.key_value_storage.models import KeyValue, DomikaKeyValueRead
 
 NOTIFICATION_TYPE_TO_CLASSES = {
     NotificationType.CRITICAL: CRITICAL_NOTIFICATION_DEVICE_CLASSES,
@@ -85,6 +90,41 @@ def get(
             result.sensors_on.append(entity_id)
 
     return result
+
+
+async def get_with_smiley(
+    hass: HomeAssistant,
+    notification_types: NotificationType,
+    user_id: str,
+    smiley_key: str,
+    smiley_hash_key: str,
+) -> dict:
+
+    try:
+        sensors_data = get(hass, notification_types)
+        result = sensors_data.to_dict()
+
+        async with database_core.get_session() as session:
+            key_value: KeyValue = await key_value_service.get(session, DomikaKeyValueRead(user_id, smiley_key))
+
+        if key_value:
+            result[smiley_key] = key_value.value
+            result[smiley_hash_key] = key_value.hash
+
+        return result
+    except DomikaFrameworkBaseError as e:
+        LOGGER.error(
+            'Can\'t get value for key: %s, user "%s". Framework error. %s',
+            smiley_key,
+            user_id,
+            e,
+        )
+    except Exception:  # noqa: BLE001
+        LOGGER.exception(
+            'Can\'t get value for key: %s, user "%s". Unhandled error',
+            smiley_key,
+            user_id,
+        )
 
 
 def check_notification_type(

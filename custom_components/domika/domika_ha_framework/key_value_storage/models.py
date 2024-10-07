@@ -24,6 +24,7 @@ class KeyValue(AsyncBase):
     user_id: Mapped[str] = mapped_column(primary_key=True)
     key: Mapped[str] = mapped_column(primary_key=True)
     value: Mapped[str]
+    hash: Mapped[str]
 
 
 @dataclass
@@ -33,6 +34,7 @@ class DomikaKeyValueBase(DataClassJSONMixin):
     user_id: str
     key: str
     value: str
+    hash: str
 
 
 @dataclass

@@ -31,7 +31,6 @@ from .const import (
     PUSH_SERVER_URL,
 )
 from .critical_sensor import router as critical_sensor_router
-from .dashboard import router as dashboard_router
 from .device import router as device_router
 from .entity import router as entity_router
 from .ha_event import flow as ha_event_flow, router as ha_event_router
@@ -116,18 +115,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     websocket_api.async_register_command(
         hass,
-        dashboard_router.websocket_domika_update_dashboards,
-    )
-    websocket_api.async_register_command(
-        hass,
-        dashboard_router.websocket_domika_get_dashboards,
-    )
-    websocket_api.async_register_command(
-        hass,
-        dashboard_router.websocket_domika_get_dashboards_hash,
-    )
-    websocket_api.async_register_command(
-        hass,
         entity_router.websocket_domika_entity_list,
     )
     websocket_api.async_register_command(
@@ -145,6 +132,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     websocket_api.async_register_command(
         hass,
         key_value_router.websocket_domika_get_value,
+    )
+    websocket_api.async_register_command(
+        hass,
+        key_value_router.websocket_domika_get_hash,
     )
 
     # Register config update callback.
@@ -177,12 +168,12 @@ async def async_unload_entry(hass: HomeAssistant, _entry: ConfigEntry) -> bool:
     websocket_api_handlers.pop("domika/resubscribe", None)
     websocket_api_handlers.pop("domika/confirm_event", None)
     websocket_api_handlers.pop("domika/critical_sensors", None)
-    websocket_api_handlers.pop("domika/update_dashboards", None)
-    websocket_api_handlers.pop("domika/get_dashboards", None)
-    websocket_api_handlers.pop("domika/get_dashboards_hash", None)
     websocket_api_handlers.pop("domika/entity_list", None)
     websocket_api_handlers.pop("domika/entity_info", None)
     websocket_api_handlers.pop("domika/entity_state", None)
+    websocket_api_handlers.pop("domika/store_value", None)
+    websocket_api_handlers.pop("domika/get_value", None)
+    websocket_api_handlers.pop("domika/get_hash", None)
 
     # Unsubscribe from events.
     if domika_data := hass.data.get(DOMAIN):

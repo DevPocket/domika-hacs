@@ -17,7 +17,7 @@ from ..errors import DatabaseError
 from .models import KeyValue, DomikaKeyValueCreate, DomikaKeyValueRead
 
 
-async def get(db_session: AsyncSession, user_id: str, key: str) -> KeyValue | None:
+async def get(db_session: AsyncSession, key_value_read: DomikaKeyValueRead) -> KeyValue | None:
     """
     Get value by user id and key.
 
@@ -25,7 +25,8 @@ async def get(db_session: AsyncSession, user_id: str, key: str) -> KeyValue | No
         errors.DatabaseError: in case when database operation can't be performed.
     """
     try:
-        stmt = sqlalchemy.select(KeyValue).where(KeyValue.user_id == user_id).where(KeyValue.key == key)
+        stmt = sqlalchemy.select(KeyValue).where(KeyValue.user_id == key_value_read.user_id)
+        stmt = stmt.where(KeyValue.key == key_value_read.key)
         return await db_session.scalar(stmt)
     except SQLAlchemyError as e:
         raise DatabaseError(str(e)) from e
