@@ -8,7 +8,7 @@ from homeassistant.components import binary_sensor, sensor
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 
 DOMAIN = "domika"
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__package__)
 
 DB_DIALECT = "sqlite"
 DB_DRIVER = "aiosqlite"
