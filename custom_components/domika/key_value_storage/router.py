@@ -59,16 +59,14 @@ async def _store_value(
 
     except DomikaFrameworkBaseError as e:
         LOGGER.error(
-            'Can\'t update value "%s" for key: %s, user "%s". Framework error. %s',
-            value,
+            'Can\'t update value for key: %s, user "%s". Framework error. %s',
             key,
             user_id,
             e,
         )
     except Exception:  # noqa: BLE001
         LOGGER.exception(
-            'Can\'t update value "%s" for key: %s, user "%s. Unhandled error',
-            value,
+            'Can\'t update value for key: %s, user "%s. Unhandled error',
             key,
             user_id,
         )
@@ -96,10 +94,10 @@ async def websocket_domika_store_value(
         return
 
     LOGGER.debug(
-        'Got websocket message "store_value", user: "%s", key: %s, value: %s',
+        'Got websocket message "store_value", user: "%s", key: %s, hash: %s',
         connection.user.id,
         msg.get("key"),
-        msg.get("value"),
+        msg.get("hash"),
     )
 
     # Fast send reply.
