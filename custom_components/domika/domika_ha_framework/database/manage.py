@@ -33,6 +33,7 @@ async def _migrate():
     engine = create_async_engine(config.CONFIG.database_url, echo=False)
     async with engine.begin() as conn:
         await conn.run_sync(_run_upgrade, alembic_config)
+    await engine.dispose()
 
 
 async def migrate():

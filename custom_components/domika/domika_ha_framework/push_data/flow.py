@@ -16,14 +16,26 @@ import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import config, logger, push_server_errors, statuses
+from ..database import core as database_core
 from ..device import service as device_service
 from ..device.models import Device, DomikaDeviceUpdate
+from . import confirmed_events_queue, events_queue
 from .models import DomikaPushDataCreate, DomikaPushedEvents, PushData
-from .service import create, decrease_delay_all, delete_by_app_session_id
+from .service import decrease_delay_all, delete_by_app_session_id
+
+
+async def confirm_event(event_ids: list[uuid.UUID]) -> None:
+    """
+    Confirm that event is fully processed by the application.
+
+    Args:
+        event_ids: list event id's that was confirmed by the application.
+    """
+    for event in event_ids:
+        await confirmed_events_queue.put(event)
 
 
 async def register_event(
-    db_session: AsyncSession,
     http_session: aiohttp.ClientSession,
     *,
     push_data: list[DomikaPushDataCreate],
@@ -36,7 +48,6 @@ async def register_event(
     All push data items must belong to the same entity and share same context.
 
     Args:
-        db_session: sqlalchemy session.
         http_session: aiohttp session.
         push_data: list of push data entities.
         critical_push_needed: critical push flag.
@@ -53,17 +64,18 @@ async def register_event(
     if not push_data:
         return result
 
-    await create(db_session, push_data)
+    for event in push_data:
+        await events_queue.put(event)
 
     if critical_push_needed:
-        verified_devices = await device_service.get_all_with_push_session_id(db_session)
+        verified_devices = await device_service.get_all_with_push_session_id()
 
         for device in verified_devices:
             if not device.push_session_id:
                 continue
 
             await _send_push_data(
-                db_session,
+                None,
                 http_session,
                 device.app_session_id,
                 device.push_session_id,
@@ -182,20 +194,45 @@ async def push_registered_events(
     return result
 
 
-async def _send_push_data(
+async def _clear_push_session_id(
     db_session: AsyncSession,
+    app_session_id: uuid.UUID,
+    push_session_id: uuid.UUID,
+) -> None:
+    # Push session id not found on push server.
+    # Remove push session id for device.
+    device = await device_service.get(db_session, app_session_id)
+    if device:
+        logger.logger.debug(
+            'The server rejected push session id "%s"',
+            push_session_id,
+        )
+        await device_service.update(
+            db_session,
+            device,
+            DomikaDeviceUpdate(push_session_id=None),
+        )
+        logger.logger.debug(
+            'Push session "%s" for app session "%s" successfully removed',
+            push_session_id,
+            app_session_id,
+        )
+
+
+async def _send_push_data(
+    db_session: AsyncSession | None,
     http_session: aiohttp.ClientSession,
     app_session_id: uuid.UUID,
     push_session_id: uuid.UUID,
-    events_dict: dict,
+    critical_alert_payload: dict,
     *,
     critical: bool = False,
-):
+) -> None:
     logger.logger.debug(
         "Push events %sto %s. %s",
         "(critical) " if critical else "",
         push_session_id,
-        events_dict,
+        critical_alert_payload,
     )
 
     try:
@@ -207,7 +244,7 @@ async def _send_push_data(
                 headers={
                     "x-session-id": str(push_session_id),
                 },
-                json={"data": json.dumps(events_dict)},
+                json={"data": json.dumps(critical_alert_payload)},
                 timeout=config.CONFIG.push_server_timeout,
             ) as resp,
         ):
@@ -216,24 +253,13 @@ async def _send_push_data(
                 return
 
             if resp.status == statuses.HTTP_401_UNAUTHORIZED:
-                # Push session id not found on push server.
-                # Remove push session id for device.
-                device = await device_service.get(db_session, app_session_id)
-                if device:
-                    logger.logger.debug(
-                        'The server rejected push session id "%s"',
-                        push_session_id,
-                    )
-                    await device_service.update(
-                        db_session,
-                        device,
-                        DomikaDeviceUpdate(push_session_id=None),
-                    )
-                    logger.logger.debug(
-                        'Push session "%s" for app session "%s" successfully removed',
-                        push_session_id,
-                        app_session_id,
-                    )
+                if db_session is None:
+                    # Create database session implicitly.
+                    async with database_core.get_session() as db_session_:
+                        await _clear_push_session_id(db_session_, app_session_id, push_session_id)
+                    return
+
+                await _clear_push_session_id(db_session, app_session_id, push_session_id)
                 return
 
             if resp.status == statuses.HTTP_400_BAD_REQUEST:

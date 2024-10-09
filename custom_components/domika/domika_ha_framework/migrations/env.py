@@ -18,8 +18,8 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-import domika_ha_framework.config
-from domika_ha_framework.models import AsyncBase
+from custom_components.domika.domika_ha_framework import config as domika_framework_config
+from custom_components.domika.domika_ha_framework.models import AsyncBase
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -46,7 +46,7 @@ target_metadata = AsyncBase.metadata
 section = config.config_ini_section
 
 # Get database url from library config.
-domika_db_url = domika_ha_framework.config.CONFIG.database_url
+domika_db_url = domika_framework_config.CONFIG.database_url
 if not domika_db_url:
     # When using alembic direct read database url from env.
     domika_db_url = os.getenv("DOMIKA_DB_URL") or ""

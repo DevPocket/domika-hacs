@@ -17,7 +17,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import config, logger, errors, push_server_errors, statuses
+from .. import config, errors, logger, push_server_errors, statuses
 from . import service as device_service
 from .models import Device, DomikaDeviceCreate, DomikaDeviceUpdate
 
