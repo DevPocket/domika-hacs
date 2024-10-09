@@ -9,15 +9,14 @@ Author(s): Artem Bezborodko
 """
 
 import uuid
-from typing import Sequence
+from contextlib import suppress
 
-import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..errors import DatabaseError
-from .models import DomikaSubscriptionCreate, DomikaSubscriptionUpdate, Subscription
-from .service import create, delete, get, update_in_place
+from .models import DomikaSubscriptionCreate, DomikaSubscriptionUpdate
+from .service import create, delete, get, get_subscription_map, update_in_place
 
 
 # TODO: maybe reorganize data so it can support schemas.
@@ -29,7 +28,7 @@ async def resubscribe(
     """
     Remove all existing subscriptions, and subscribe to the new subscriptions.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     await delete(db_session, app_session_id, commit=False)
@@ -63,7 +62,7 @@ async def resubscribe_push(
 
     Set need_push to true for given entities attributes, for all other set need_push to false.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     await update_in_place(
@@ -114,14 +113,14 @@ async def get_push_attributes(db_session: AsyncSession, app_session_id: uuid.UUI
     Returns:
         list of entity_id grouped with their attributes.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     result = []
 
     subscriptions = await get(db_session, app_session_id, need_push=True)
 
-    entity_attributes: dict | None = None
+    entity_attributes: dict = {}
     current_entity: str | None = None
     for subscription in subscriptions:
         if current_entity != subscription.entity_id:
@@ -139,31 +138,28 @@ async def get_push_attributes(db_session: AsyncSession, app_session_id: uuid.UUI
 
 
 async def get_app_session_id_by_attributes(
-    db_session: AsyncSession,
     entity_id: str,
     attributes: list[str],
-) -> Sequence[uuid.UUID]:
+) -> set[uuid.UUID]:
     """
-    Get all app session id's for with given entity_id that contains attribute from attributes.
+    Get all app session id's for which given entity_id contains attribute from attributes.
 
     Args:
-        db_session: sqlalchemy session.
         entity_id: homeassistant entity id.
         attributes: entity's attributes to search.
 
     Returns:
-        app session id's for with given entity_id that contains attribute from attributes
+        App session id's.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
-    stmt = sqlalchemy.select(Subscription.app_session_id)
-    stmt = stmt.distinct(Subscription.app_session_id)
-    stmt = stmt.where(
-        Subscription.entity_id == entity_id,
-        Subscription.attribute.in_(attributes),
-    )
-    try:
-        return (await db_session.scalars(stmt)).all()
-    except SQLAlchemyError as e:
-        raise DatabaseError(str(e)) from e
+    subscription_map = await get_subscription_map()
+
+    app_session_ids: set[uuid.UUID] = set()
+
+    for attribute in attributes:
+        with suppress(KeyError):
+            app_session_ids.update(subscription_map[entity_id][attribute])
+
+    return app_session_ids

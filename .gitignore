@@ -1,10 +1,13 @@
 .DS_Store
+.venv
 .vscode
 .pytest_cache
+.mypy_cache
+.env
 
 **/__pycache__
 **/package.json
-.env
+**/*.egg-info
 
 # File-based project format
 *.iws

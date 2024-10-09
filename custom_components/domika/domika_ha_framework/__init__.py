@@ -8,7 +8,7 @@ domika-ha-framework.
 Author(s): Artem Bezborodko
 """
 
-import config
+from . import config, push_data
 from .database import core as database_core
 from .database import manage as database_manage
 
@@ -25,8 +25,10 @@ async def init(cfg: config.Config):
     config.CONFIG = cfg
     await database_core.init_db()
     await database_manage.migrate()
+    push_data.start_push_data_processor()
 
 
 async def dispose():
     """Clean opened resources and close database connections."""
+    await push_data.stop_push_data_processor()
     await database_core.close_db()

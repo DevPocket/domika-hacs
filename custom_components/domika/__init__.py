@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-from functools import partial
 import os
+from functools import partial
 
 from aiohttp import ClientTimeout
-from domika_ha_framework import config
-
 from homeassistant.components import websocket_api
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_STATE_CHANGED
@@ -17,6 +15,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.typing import ConfigType
 
+from . import domika_ha_framework
 from .api.domain_services_view import DomikaAPIDomainServicesView
 from .api.push_resubscribe import DomikaAPIPushResubscribe
 from .api.push_states_with_delay import DomikaAPIPushStatesWithDelay
@@ -32,10 +31,12 @@ from .const import (
 )
 from .critical_sensor import router as critical_sensor_router
 from .device import router as device_router
+from .domika_ha_framework import config
 from .entity import router as entity_router
-from .ha_event import flow as ha_event_flow, router as ha_event_router
-from .subscription import router as subscription_router
+from .ha_event import flow as ha_event_flow
+from .ha_event import router as ha_event_router
 from .key_value_storage import router as key_value_router
+from .subscription import router as subscription_router
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 

@@ -8,8 +8,8 @@ Subscription data.
 Author(s): Artem Bezborodko
 """
 
-from dataclasses import dataclass, field
 import uuid
+from dataclasses import dataclass, field
 
 from mashumaro import pass_through
 from mashumaro.mixins.json import DataClassJSONMixin
@@ -17,6 +17,9 @@ from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..models import AsyncBase
+
+_EntityToAttribute = dict[str, set[uuid.UUID]]
+SubscriptionMap = dict[str, _EntityToAttribute]
 
 
 class Subscription(AsyncBase):

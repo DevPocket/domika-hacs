@@ -9,14 +9,17 @@ Author(s): Artem Bezborodko
 """
 
 import uuid
-from typing import Sequence
+from typing import Sequence, overload
 
 import sqlalchemy
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..cache import cached
+from ..database import core as database_core
 from ..errors import DatabaseError
+from ..utils import cache_key_ignore_first_arg
 from .models import Device, DomikaDeviceCreate, DomikaDeviceUpdate
 
 
@@ -34,13 +37,57 @@ async def get(db_session: AsyncSession, app_session_id: uuid.UUID) -> Device | N
         raise DatabaseError(str(e)) from e
 
 
-async def get_all_with_push_session_id(db_session: AsyncSession) -> Sequence[Device]:
+async def get_all(
+    db_session: AsyncSession,
+    limit: int = 100,
+    offset: int = 0,
+) -> Sequence[Device]:
     """
-    Get device by application session id.
+    Get all devices.
 
     Raise:
         errors.DatabaseError: in case when database operation can't be performed.
     """
+    stmt = sqlalchemy.select(Device).order_by(Device.app_session_id).limit(limit).offset(offset)
+    try:
+        return (await db_session.scalars(stmt)).all()
+    except SQLAlchemyError as e:
+        raise DatabaseError(str(e)) from e
+
+
+@overload
+async def get_all_with_push_session_id() -> Sequence[Device]: ...
+
+
+@overload
+async def get_all_with_push_session_id(db_session: AsyncSession) -> Sequence[Device]: ...
+
+
+@cached(cache_key_ignore_first_arg)
+async def get_all_with_push_session_id(db_session: AsyncSession | None = None) -> Sequence[Device]:
+    """
+    Get all devices which have push_session_id.
+
+    If cached value exists - return cached value, load and return cached otherwise.
+    Returned ORM objects are not bound to any database session. So you can't use them for database
+    manipulation. If you need bound objects use .without_cache() from this function.
+
+    If db_session is not set - create database session implicitly, .without_cache() make no sense in
+    this case.
+
+    Args:
+        db_session: optional sqlalchemy database session. Defaults to None.
+
+    Raises:
+        DatabaseError: in case when database operation can't be performed.
+
+    Returns:
+        All devices which have push_session_id set.
+    """
+    if db_session is None:
+        async with database_core.get_session() as db_session_:
+            return await get_all_with_push_session_id(db_session_)
+
     stmt = select(Device).where(Device.push_session_id.is_not(None))
     try:
         return (await db_session.scalars(stmt)).all()
@@ -82,7 +129,7 @@ async def get_all_with_push_token_hash(
 async def remove_all_with_push_token_hash(
     db_session: AsyncSession,
     push_token_hash: str,
-    device: Device,
+    except_device: Device,
     *,
     commit: bool = True,
 ):
@@ -95,8 +142,12 @@ async def remove_all_with_push_token_hash(
     stmt = (
         sqlalchemy.delete(Device)
         .where(Device.push_token_hash == push_token_hash)
-        .where(Device.app_session_id != device.app_session_id)
+        .where(Device.app_session_id != except_device.app_session_id)
     )
+
+    # Cleanup cache.
+    get_all_with_push_session_id.cache_clear()
+
     try:
         await db_session.execute(stmt)
 
@@ -120,6 +171,9 @@ async def create(
     """
     device = Device(**device_in.to_dict())
     db_session.add(device)
+
+    # Cleanup cache.
+    get_all_with_push_session_id.cache_clear()
 
     try:
         await db_session.flush()
@@ -150,6 +204,9 @@ async def update(
 
     for field in device_data:
         if field in update_data:
+            if field == "push_session_id":
+                # Cleanup cache.
+                get_all_with_push_session_id.cache_clear()
             setattr(device, field, update_data[field])
 
     try:
@@ -176,7 +233,11 @@ async def update_in_place(
     """
     stmt = sqlalchemy.update(Device)
     stmt = stmt.where(Device.app_session_id == app_session_id)
-    stmt = stmt.values(**device_in.to_dict())
+    update_data = device_in.to_dict()
+    if "push_session_id" in update_data:
+        # Cleanup cache.
+        get_all_with_push_session_id.cache_clear()
+    stmt = stmt.values(**update_data)
 
     try:
         await db_session.execute(stmt)
@@ -195,6 +256,9 @@ async def delete(db_session: AsyncSession, app_session_id: uuid.UUID, *, commit:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     stmt = sqlalchemy.delete(Device).where(Device.app_session_id == app_session_id)
+
+    # Cleanup cache.
+    get_all_with_push_session_id.cache_clear()
 
     try:
         await db_session.execute(stmt)

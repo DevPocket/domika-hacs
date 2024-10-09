@@ -1,18 +1,8 @@
 """HA event flow."""
 
-from collections.abc import Sequence
 import logging
 import uuid
-
-from ..domika_ha_framework.database import core as database_core
-from ..domika_ha_framework.errors import DomikaFrameworkBaseError
-from ..domika_ha_framework.push_data import flow as push_data_flow
-from ..domika_ha_framework.push_data.models import (
-    DomikaPushDataCreate,
-    DomikaPushedEvents,
-)
-from ..domika_ha_framework.subscription import flow as subscription_flow
-from ..domika_ha_framework.utils import flatten_json
+from typing import Iterable
 
 from homeassistant.const import ATTR_DEVICE_CLASS
 from homeassistant.core import (
@@ -31,6 +21,15 @@ from ..const import (
 )
 from ..critical_sensor import service as critical_sensor_service
 from ..critical_sensor.enums import NotificationType
+from ..domika_ha_framework.database import core as database_core
+from ..domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..domika_ha_framework.push_data import flow as push_data_flow
+from ..domika_ha_framework.push_data.models import (
+    DomikaPushDataCreate,
+    DomikaPushedEvents,
+)
+from ..domika_ha_framework.subscription import flow as subscription_flow
+from ..domika_ha_framework.utils import flatten_json
 
 
 async def register_event(
@@ -80,8 +79,7 @@ async def register_event(
     ]
 
     critical_push_needed = (
-        critical_sensor_service.critical_push_needed(hass, entity_id)
-        and ("s", "on") in attributes
+        critical_sensor_service.critical_push_needed(hass, entity_id) and ("s", "on") in attributes
     )
 
     critical_alert_payload = (
@@ -89,35 +87,32 @@ async def register_event(
     )
 
     try:
-        async with database_core.get_session() as session:
-            # Get application id's associated with attributes.
-            app_session_ids = await subscription_flow.get_app_session_id_by_attributes(
-                session,
+        # Get application id's associated with attributes.
+        app_session_ids = await subscription_flow.get_app_session_id_by_attributes(
+            entity_id,
+            [attribute[0] for attribute in attributes],
+        )
+
+        # If any app_session_ids are subscribed for these attributes - fire the event to those
+        # app_session_ids for app to catch.
+        if app_session_ids:
+            _fire_event_to_app_session_ids(
+                hass,
+                event,
+                event_id,
                 entity_id,
-                [attribute[0] for attribute in attributes],
+                attributes,
+                app_session_ids,
             )
 
-            # If any app_session_ids are subscribed for these attributes - fire the event to those
-            # app_session_ids for app to catch.
-            if app_session_ids:
-                _fire_event_to_app_session_ids(
-                    hass,
-                    event,
-                    event_id,
-                    entity_id,
-                    attributes,
-                    app_session_ids,
-                )
-
-            pushed_events = await push_data_flow.register_event(
-                session,
-                async_get_clientsession(hass),
-                push_data=events,
-                critical_push_needed=critical_push_needed,
-                critical_alert_payload=critical_alert_payload,
-            )
-            if LOGGER.isEnabledFor(logging.DEBUG):
-                _log_pushed_events(pushed_events)
+        pushed_events = await push_data_flow.register_event(
+            async_get_clientsession(hass),
+            push_data=events,
+            critical_push_needed=critical_push_needed,
+            critical_alert_payload=critical_alert_payload,
+        )
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            _log_pushed_events(pushed_events)
     except DomikaFrameworkBaseError:
         LOGGER.exception(
             "Can't register event entity: %s attributes %s. Framework error",
@@ -146,7 +141,8 @@ async def push_registered_events(hass: HomeAssistant) -> None:
     """Push registered events to the push server."""
     async with database_core.get_session() as session:
         pushed_events = await push_data_flow.push_registered_events(
-            session, async_get_clientsession(hass)
+            session,
+            async_get_clientsession(hass),
         )
         if LOGGER.isEnabledFor(logging.DEBUG):
             _log_pushed_events(pushed_events)
@@ -163,11 +159,7 @@ def _log_pushed_events(
 
         # Entities with their changed attributes.
         data = str(pushed_event.events)
-        data = (
-            data[:max_events_msg_len] + "..."
-            if len(data) > max_events_msg_len
-            else data
-        )
+        data = data[:max_events_msg_len] + "..." if len(data) > max_events_msg_len else data
 
         LOGGER.debug(
             "Pushed %s changed attributes in %s entities for %s push_session_id: %s",
@@ -218,7 +210,7 @@ def _fire_event_to_app_session_ids(
     event_id: uuid.UUID,
     entity_id: str,
     attributes: set[tuple],
-    app_session_ids: Sequence[uuid.UUID],
+    app_session_ids: Iterable[uuid.UUID],
 ) -> None:
     dict_attributes = dict(attributes)
     dict_attributes["d.type"] = "state_changed"
