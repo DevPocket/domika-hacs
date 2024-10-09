@@ -44,7 +44,7 @@ async def register_event(
 
     attributes = _get_changed_attributes_from_event_data(event_data)
 
-    LOGGER.debug("Got event for entity: %s, attributes: %s", entity_id, attributes)
+    LOGGER.debug("Got event for entity: %s, attributes: %s, time fired: %s", entity_id, attributes, event.time_fired)
 
     if not attributes:
         return
