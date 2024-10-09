@@ -96,10 +96,10 @@ async def websocket_domika_store_value(
         return
 
     LOGGER.debug(
-        'Got websocket message "store_value", user: "%s", key: %s, value: %s',
+        'Got websocket message "store_value", user: "%s", key: %s, hash: %s',
         connection.user.id,
         msg.get("key"),
-        msg.get("value"),
+        msg.get("hash"),
     )
 
     # Fast send reply.

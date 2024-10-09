@@ -37,7 +37,7 @@ async def create_or_update(
     key_value_in: DomikaKeyValueCreate,
     *,
     commit: bool = True,
-) -> KeyValue | None:
+):
     """
     Create or update key_value record.
 
@@ -50,12 +50,12 @@ async def create_or_update(
         index_elements=[KeyValue.user_id, KeyValue.key],
         set_={
             "value": stmt.excluded.value,
+            "hash": stmt.excluded.hash,
         },
     )
-    stmt = stmt.returning(KeyValue)
 
     try:
-        result = await db_session.scalar(stmt)
+        result = await db_session.execute(stmt)
 
         if commit:
             await db_session.commit()
