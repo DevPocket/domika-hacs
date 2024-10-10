@@ -59,8 +59,6 @@ async def create_or_update(
     except SQLAlchemyError as e:
         raise DatabaseError(str(e)) from e
 
-    return result
-
 
 async def delete(
     db_session: AsyncSession,
