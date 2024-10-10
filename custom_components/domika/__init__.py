@@ -179,10 +179,11 @@ async def async_unload_entry(hass: HomeAssistant, _entry: ConfigEntry) -> bool:
     websocket_api_handlers.pop("domika/get_value", None)
     websocket_api_handlers.pop("domika/get_value_hash", None)
 
-    # Unsubscribe from events.
-    if domika_data := hass.data.get(DOMAIN):
-        if cancel_registrator_cb := domika_data.get("cancel_registrator_cb"):
-            cancel_registrator_cb()
+    # Cancel Domika event listening.
+    if (domika_data := hass.data.get(DOMAIN)) and (
+        cancel_event_listening := domika_data.get("cancel_event_listening")
+    ):
+        cancel_event_listening()
 
     await asyncio.sleep(0)
 
@@ -237,8 +238,8 @@ async def _on_homeassistant_started(hass: HomeAssistant) -> None:
         "event_pusher",
     )
 
-    # Setup Domika event registrator.
-    hass.data[DOMAIN]["cancel_registrator_cb"] = hass.bus.async_listen(
+    # Setup Domika event listener.
+    hass.data[DOMAIN]["cancel_event_listening"] = hass.bus.async_listen(
         EVENT_STATE_CHANGED,
         partial(ha_event_flow.register_event, hass),
     )
