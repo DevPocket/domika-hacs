@@ -3,13 +3,13 @@
 from collections.abc import Sequence
 import uuid
 
-from ..domika_ha_framework.subscription import service as subscription_service
-from ..domika_ha_framework.utils import flatten_json
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from homeassistant.core import async_get_hass
 
 from ..const import LOGGER
+from ..domika_ha_framework.subscription import service as subscription_service
+from ..domika_ha_framework.utils import flatten_json
 from .models import DomikaHaEntity
 
 
@@ -20,7 +20,12 @@ async def get(
     need_push: bool | None = True,
     entity_id: str | None = None,
 ) -> Sequence[DomikaHaEntity]:
-    """Get the attribute state of all entities from the subscription for the given app_session_id."""
+    """
+    Get the attribute state.
+
+    Get the attribute state of all entities from the subscription for the given
+    app_session_id.
+    """
     result: list[DomikaHaEntity] = []
 
     entities_attributes: dict[str, list[str]] = {}
@@ -38,7 +43,7 @@ async def get(
     # } noqa: ERA001
     for subscription in subscriptions:
         entities_attributes.setdefault(subscription.entity_id, []).append(
-            subscription.attribute
+            subscription.attribute,
         )
 
     hass = async_get_hass()

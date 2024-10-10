@@ -3,9 +3,6 @@
 from typing import Any, cast
 import uuid
 
-from ..domika_ha_framework.database import core as database_core
-from ..domika_ha_framework.errors import DomikaFrameworkBaseError
-from ..domika_ha_framework.push_data import service as push_data_service
 import voluptuous as vol
 
 from homeassistant.components.websocket_api import (
@@ -16,6 +13,9 @@ from homeassistant.components.websocket_api import (
 from homeassistant.core import HomeAssistant
 
 from ..const import LOGGER
+from ..domika_ha_framework.database import core as database_core
+from ..domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..domika_ha_framework.push_data import service as push_data_service
 
 
 @websocket_command(
@@ -52,7 +52,9 @@ async def websocket_domika_confirm_events(
                 await push_data_service.delete(session, event_ids, app_session_id)
         except DomikaFrameworkBaseError as e:
             LOGGER.error(
-                'Can\'t confirm events "%s". Framework error. %s', event_ids, e
+                'Can\'t confirm events "%s". Framework error. %s',
+                event_ids,
+                e,
             )
         except Exception:  # noqa: BLE001
             LOGGER.exception('Can\'t confirm events "%s". Unhandled error', event_ids)

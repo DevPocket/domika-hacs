@@ -1,17 +1,9 @@
-# vim: set fileencoding=utf-8
-"""
-Subscription data.
+"""User event subscriptions service functions."""
 
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
-
-import uuid
 from collections.abc import Sequence
 from dataclasses import asdict
-from typing import Optional, overload
+from typing import overload
+import uuid
 
 import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
@@ -33,8 +25,8 @@ async def get(
     db_session: AsyncSession,
     app_session_id: uuid.UUID,
     *,
-    need_push: Optional[bool] = True,
-    entity_id: Optional[str] = None,
+    need_push: bool | None = True,
+    entity_id: str | None = None,
 ) -> Sequence[Subscription]:
     """
     Get all subscriptions by application session id.
@@ -44,7 +36,9 @@ async def get(
     Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
-    stmt = sqlalchemy.select(Subscription).where(Subscription.app_session_id == app_session_id)
+    stmt = sqlalchemy.select(Subscription).where(
+        Subscription.app_session_id == app_session_id,
+    )
     if need_push is not None:
         stmt = stmt.where(Subscription.need_push == need_push)
     if entity_id:
@@ -62,8 +56,8 @@ async def get_all(
     limit: int = 100,
     offset: int = 0,
     *,
-    need_push: Optional[bool] = True,
-    entity_id: Optional[str] = None,
+    need_push: bool | None = True,
+    entity_id: str | None = None,
 ) -> Sequence[Subscription]:
     """
     Get all subscriptions by application session id.
@@ -99,7 +93,9 @@ async def get_subscription_map(db_session: AsyncSession) -> SubscriptionMap: ...
 
 
 @cached(cache_key_ignore_first_arg)
-async def get_subscription_map(db_session: AsyncSession | None = None) -> SubscriptionMap:
+async def get_subscription_map(
+    db_session: AsyncSession | None = None,
+) -> SubscriptionMap:
     """
     Get all subscriptions, and build subscription map.
 
@@ -245,14 +241,21 @@ async def update_in_place(
         raise DatabaseError(str(e)) from e
 
 
-async def delete(db_session: AsyncSession, app_session_id: uuid.UUID, *, commit: bool = True):
+async def delete(
+    db_session: AsyncSession,
+    app_session_id: uuid.UUID,
+    *,
+    commit: bool = True,
+):
     """
     Delete subscription.
 
     Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
-    stmt = sqlalchemy.delete(Subscription).where(Subscription.app_session_id == app_session_id)
+    stmt = sqlalchemy.delete(Subscription).where(
+        Subscription.app_session_id == app_session_id,
+    )
 
     get_subscription_map.cache_clear()
 

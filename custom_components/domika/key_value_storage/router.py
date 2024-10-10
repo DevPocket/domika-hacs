@@ -1,18 +1,9 @@
 """Application dashboard router."""
 
 import contextlib
-from typing import Any, cast
+from typing import Any
 import uuid
 
-from ..domika_ha_framework.key_value_storage.models import (
-    DomikaKeyValueCreate,
-    DomikaKeyValueRead,
-    KeyValue,
-)
-from ..domika_ha_framework.key_value_storage import service as key_value_service
-from ..domika_ha_framework.database import core as database_core
-from ..domika_ha_framework.errors import DomikaFrameworkBaseError
-from ..domika_ha_framework.device import service as device_service
 import voluptuous as vol
 
 from homeassistant.components.websocket_api import (
@@ -23,6 +14,15 @@ from homeassistant.components.websocket_api import (
 from homeassistant.core import HomeAssistant
 
 from ..const import LOGGER
+from ..domika_ha_framework.database import core as database_core
+from ..domika_ha_framework.device import service as device_service
+from ..domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..domika_ha_framework.key_value_storage import service as key_value_service
+from ..domika_ha_framework.key_value_storage.models import (
+    DomikaKeyValueCreate,
+    DomikaKeyValueRead,
+    KeyValue,
+)
 
 
 async def _store_value(
@@ -66,7 +66,7 @@ async def _store_value(
         )
     except Exception:  # noqa: BLE001
         LOGGER.exception(
-            'Can\'t update value for key: %s, user "%s. Unhandled error',
+            'Can\'t update value for key: %s, user "%s". Unhandled error',
             key,
             user_id,
         )
@@ -119,21 +119,19 @@ async def websocket_domika_store_value(
     await _store_value(hass, key, value, value_hash, connection.user.id, app_session_id)
 
 
-
 async def _get_value(
     key: str,
     user_id: str,
 ) -> KeyValue | None:
     try:
         async with database_core.get_session() as session:
-            key_value = await key_value_service.get(
+            return await key_value_service.get(
                 session,
                 DomikaKeyValueRead(
                     user_id=user_id,
                     key=key,
-                )
+                ),
             )
-            return key_value
     except DomikaFrameworkBaseError as e:
         LOGGER.error(
             'Can\'t get value for key: %s, user "%s". Framework error. %s',
@@ -143,7 +141,7 @@ async def _get_value(
         )
     except Exception:  # noqa: BLE001
         LOGGER.exception(
-            'Can\'t get value for key: %s, user "%s. Unhandled error',
+            "Can't get value for key: %s, user \"%s. Unhandled error",
             key,
             user_id,
         )
@@ -183,7 +181,6 @@ async def websocket_domika_get_value(
 
     connection.send_result(msg_id, result)
     LOGGER.debug("get_value msg_id=%s data=%s", msg_id, result)
-
 
 
 @websocket_command(

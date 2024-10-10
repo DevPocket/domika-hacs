@@ -6,14 +6,14 @@ from typing import Any
 import uuid
 
 from aiohttp import web
-from ..domika_ha_framework.database import core as database_core
-from ..domika_ha_framework.errors import DomikaFrameworkBaseError
-from ..domika_ha_framework.push_data import service as push_data_service
 
 from homeassistant.core import async_get_hass
 from homeassistant.helpers.http import HomeAssistantView
 
 from ..const import DOMAIN, LOGGER
+from ..domika_ha_framework.database import core as database_core
+from ..domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..domika_ha_framework.push_data import service as push_data_service
 from ..ha_entity import service as ha_entity_service
 
 
@@ -70,12 +70,14 @@ class DomikaAPIPushStatesWithDelay(HomeAssistantView):
         except DomikaFrameworkBaseError as e:
             LOGGER.error("DomikaAPIPushStatesWithDelay. Framework error. %s", e)
             return self.json_message(
-                "Framework error.", HTTPStatus.INTERNAL_SERVER_ERROR
+                "Framework error.",
+                HTTPStatus.INTERNAL_SERVER_ERROR,
             )
         except Exception:  # noqa: BLE001
             LOGGER.exception("DomikaAPIPushStatesWithDelay. Unhandled error")
             return self.json_message(
-                "Internal error.", HTTPStatus.INTERNAL_SERVER_ERROR
+                "Internal error.",
+                HTTPStatus.INTERNAL_SERVER_ERROR,
             )
 
         data = {"entities": result}

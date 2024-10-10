@@ -1,15 +1,7 @@
-# vim: set fileencoding=utf-8
-"""
-Subscription data.
+"""User event subscriptions models."""
 
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
-
-import uuid
 from dataclasses import dataclass, field
+import uuid
 
 from mashumaro import pass_through
 from mashumaro.mixins.json import DataClassJSONMixin

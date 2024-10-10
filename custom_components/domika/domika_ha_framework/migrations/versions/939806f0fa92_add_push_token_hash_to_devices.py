@@ -6,16 +6,16 @@ Revises: 3e2eb2f9d056
 Create Date: 2024-07-15 17:01:01.856087
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-import sqlalchemy as sa
 from alembic import op
+import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "939806f0fa92"
-down_revision: Union[str, None] = "3e2eb2f9d056"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "3e2eb2f9d056"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -25,7 +25,12 @@ def upgrade() -> None:
         batch_op.drop_column("platform")
         batch_op.drop_column("environment")
         batch_op.add_column(
-            sa.Column("push_token_hash", sa.String(), nullable=False, server_default=""),
+            sa.Column(
+                "push_token_hash",
+                sa.String(),
+                nullable=False,
+                server_default="",
+            ),
         )
 
 

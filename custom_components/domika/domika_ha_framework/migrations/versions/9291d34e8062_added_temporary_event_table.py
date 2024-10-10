@@ -6,16 +6,16 @@ Revises: b74951a1e96b
 Create Date: 2024-05-12 14:44:29.246644
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-import sqlalchemy as sa
 from alembic import op
+import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "9291d34e8062"
-down_revision: Union[str, None] = "b74951a1e96b"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "b74951a1e96b"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -34,7 +34,12 @@ def upgrade() -> None:
             server_default=sa.text("(datetime('now'))"),
             nullable=False,
         ),
-        sa.PrimaryKeyConstraint("event_id", "entity_id", "attribute", name=op.f("pk_events")),
+        sa.PrimaryKeyConstraint(
+            "event_id",
+            "entity_id",
+            "attribute",
+            name=op.f("pk_events"),
+        ),
     )
     # ### end Alembic commands ###
 

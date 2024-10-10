@@ -1,27 +1,29 @@
 """Critical sensor service."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components import binary_sensor
 from homeassistant.const import ATTR_DEVICE_CLASS, STATE_ON
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.entity_registry import RegistryEntry
-from ..domika_ha_framework.database import core as database_core
-from ..domika_ha_framework.errors import DomikaFrameworkBaseError
-from ..domika_ha_framework.key_value_storage import service as key_value_service
 
 from ..const import (
     CRITICAL_NOTIFICATION_DEVICE_CLASSES,
     CRITICAL_PUSH_SETTINGS_DEVICE_CLASSES,
     DOMAIN,
+    LOGGER,
     SENSORS_DOMAIN,
     WARNING_NOTIFICATION_DEVICE_CLASSES,
-    LOGGER,
 )
+from ..domika_ha_framework.database import core as database_core
+from ..domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..domika_ha_framework.key_value_storage import service as key_value_service
+from ..domika_ha_framework.key_value_storage.models import DomikaKeyValueRead, KeyValue
 from .enums import NotificationType
 from .models import DomikaNotificationSensor, DomikaNotificationSensorsRead
-from ..domika_ha_framework.key_value_storage.models import KeyValue, DomikaKeyValueRead
+
+if TYPE_CHECKING:
+    from homeassistant.helpers.entity_registry import RegistryEntry
 
 NOTIFICATION_TYPE_TO_CLASSES = {
     NotificationType.CRITICAL: CRITICAL_NOTIFICATION_DEVICE_CLASSES,
@@ -30,7 +32,8 @@ NOTIFICATION_TYPE_TO_CLASSES = {
 
 
 def get(
-    hass: HomeAssistant, notification_types: NotificationType
+    hass: HomeAssistant,
+    notification_types: NotificationType,
 ) -> DomikaNotificationSensorsRead:
     """Get state of the critical sensors."""
     result = DomikaNotificationSensorsRead([], [])
@@ -41,7 +44,8 @@ def get(
     domain_data: dict[str, Any] | None = hass.data.get(DOMAIN)
     critical_entities = domain_data.get("critical_entities", {}) if domain_data else {}
     critical_included_entity_ids = critical_entities.get(
-        "critical_included_entity_ids", []
+        "critical_included_entity_ids",
+        [],
     )
 
     for entity_id in entity_ids:
@@ -49,7 +53,8 @@ def get(
         if not entity or entity.hidden_by or entity.disabled_by:
             continue
 
-        # If user manually added entity to the list for critical pushes — it's CRITICAL for us.
+        # If user manually added entity to the list for critical pushes — it's CRITICAL
+        # for us.
         sensor_notification_type: NotificationType | None = None
         if entity_id in critical_included_entity_ids:
             sensor_notification_type = NotificationType.CRITICAL
@@ -99,13 +104,15 @@ async def get_with_smiley(
     smiley_key: str,
     smiley_hash_key: str,
 ) -> dict:
-
     try:
         sensors_data = get(hass, notification_types)
         result = sensors_data.to_dict()
 
         async with database_core.get_session() as session:
-            key_value: KeyValue = await key_value_service.get(session, DomikaKeyValueRead(user_id, smiley_key))
+            key_value: KeyValue | None = await key_value_service.get(
+                session,
+                DomikaKeyValueRead(user_id, smiley_key),
+            )
 
         if key_value:
             result[smiley_key] = key_value.value
@@ -128,9 +135,12 @@ async def get_with_smiley(
 
 
 def check_notification_type(
-    hass: HomeAssistant, entity_id: str, types: NotificationType
+    hass: HomeAssistant,
+    entity_id: str,
+    types: NotificationType,
 ) -> bool:
-    """Check if entity is a binary sensor of certain notification types.
+    """
+    Check if entity is a binary sensor of certain notification types.
 
     Args:
         hass: homeassistant core object.
@@ -139,7 +149,6 @@ def check_notification_type(
 
     Returns:
         True if entity_id correspond to certain notification types, False otherwise.
-
     """
     if not entity_id.startswith(f"{binary_sensor.DOMAIN}."):
         return False
@@ -147,9 +156,11 @@ def check_notification_type(
     domain_data: dict[str, Any] | None = hass.data.get(DOMAIN)
     critical_entities = domain_data.get("critical_entities", {}) if domain_data else {}
     critical_included_entity_ids = critical_entities.get(
-        "critical_included_entity_ids", []
+        "critical_included_entity_ids",
+        [],
     )
-    # If user manually added entity to the list for critical pushes — it's CRITICAL for us.
+    # If user manually added entity to the list for critical pushes — it's CRITICAL for
+    # us.
     if entity_id in critical_included_entity_ids and NotificationType.CRITICAL in types:
         return True
 
@@ -163,14 +174,16 @@ def check_notification_type(
 
 
 def critical_push_needed(hass: HomeAssistant, entity_id: str) -> bool:
-    """Check if user requested critical push notification for this binary sensor.
+    """
+    Check if user requested critical push notification for this binary sensor.
 
     Args:
         hass: homeassistant core object.
         entity_id: homeassistant entity id.
 
     Returns:
-        True user chose to get critical push notifications for this binary sensor.
+        True if user chose to get critical push notifications for this binary sensor,
+        false otherwise.
 
     """
     if not entity_id.startswith(f"{binary_sensor.DOMAIN}."):
@@ -179,7 +192,8 @@ def critical_push_needed(hass: HomeAssistant, entity_id: str) -> bool:
     domain_data: dict[str, Any] | None = hass.data.get(DOMAIN)
     critical_entities = domain_data.get("critical_entities", {}) if domain_data else {}
     critical_included_entity_ids = critical_entities.get(
-        "critical_included_entity_ids", []
+        "critical_included_entity_ids",
+        [],
     )
     # If user manually added entity to the list for critical pushes — return True.
     if entity_id in critical_included_entity_ids:
@@ -195,21 +209,22 @@ def critical_push_needed(hass: HomeAssistant, entity_id: str) -> bool:
     for key, value in critical_entities.items():
         if key in CRITICAL_PUSH_SETTINGS_DEVICE_CLASSES and value:
             critical_device_classes_enabled.append(
-                CRITICAL_PUSH_SETTINGS_DEVICE_CLASSES[key]
+                CRITICAL_PUSH_SETTINGS_DEVICE_CLASSES[key],
             )
 
     return sensor_class in critical_device_classes_enabled
 
 
 def notification_type(hass: HomeAssistant, entity_id: str) -> NotificationType | None:
-    """Get notification type for binary sensor entity.
+    """
+    Get notification type for binary sensor entity.
 
     Args:
         hass: homeassistant core object.
         entity_id: homeassistant entity id.
 
     Returns:
-        entity's notification type if applicable, None otherwise.
+        Entity's notification type if applicable, None otherwise.
 
     """
     if not entity_id.startswith(f"{binary_sensor.DOMAIN}."):
@@ -218,9 +233,11 @@ def notification_type(hass: HomeAssistant, entity_id: str) -> NotificationType |
     domain_data: dict[str, Any] | None = hass.data.get(DOMAIN)
     critical_entities = domain_data.get("critical_entities", {}) if domain_data else {}
     critical_included_entity_ids = critical_entities.get(
-        "critical_included_entity_ids", []
+        "critical_included_entity_ids",
+        [],
     )
-    # If user manually added entity to the list for critical pushes — it's CRITICAL for us.
+    # If user manually added entity to the list for critical pushes — it's CRITICAL for
+    # us.
     if entity_id in critical_included_entity_ids:
         return NotificationType.CRITICAL
 

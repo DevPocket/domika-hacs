@@ -1,20 +1,11 @@
-# vim: set fileencoding=utf-8
-"""
-Push data.
+"""Push data service functions."""
 
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
-
-import uuid
 from collections.abc import Sequence
-from typing import Optional
+import uuid
 
 import sqlalchemy
-import sqlalchemy.dialects.sqlite as sqlite_dialect
 from sqlalchemy import and_
+import sqlalchemy.dialects.sqlite as sqlite_dialect
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,7 +21,7 @@ async def get(
     """
     Get push data by id.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     stmt = sqlalchemy.select(PushData).where(PushData.event_id == event_id)
@@ -48,7 +39,7 @@ async def get_all(
     """
     Get all push data.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     stmt = sqlalchemy.select(PushData)
@@ -77,7 +68,7 @@ async def create(
 
     If already exists updates value and timestamp.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     result: Sequence[PushData] = []
@@ -104,7 +95,8 @@ async def create(
     )
     sel = sel.join(
         Subscription,
-        (Subscription.entity_id == _Event.entity_id) & (Subscription.attribute == _Event.attribute),
+        (Subscription.entity_id == _Event.entity_id)
+        & (Subscription.attribute == _Event.attribute),
     )
     sel = sel.where(
         Subscription.need_push.is_(True),
@@ -167,7 +159,7 @@ async def update(
     """
     Update push data.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     push_data_attrs = push_data.dict()
@@ -194,16 +186,22 @@ async def delete(
     """
     Delete push data by event id, or list of event id's.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     if isinstance(event_id, list):
         stmt = sqlalchemy.delete(PushData).where(
-            and_(PushData.event_id.in_(event_id), PushData.app_session_id == app_session_id),
+            and_(
+                PushData.event_id.in_(event_id),
+                PushData.app_session_id == app_session_id,
+            ),
         )
     else:
         stmt = sqlalchemy.delete(PushData).where(
-            and_(PushData.event_id == event_id, PushData.app_session_id == app_session_id),
+            and_(
+                PushData.event_id == event_id,
+                PushData.app_session_id == app_session_id,
+            ),
         )
 
     try:
@@ -223,7 +221,7 @@ async def delete_all(
     """
     Delete all push data.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     stmt = sqlalchemy.delete(PushData)
@@ -246,13 +244,17 @@ async def delete_by_app_session_id(
     """
     Delete push data by event id, or list of event id's.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     if isinstance(app_session_id, list):
-        stmt = sqlalchemy.delete(PushData).where(PushData.app_session_id.in_(app_session_id))
+        stmt = sqlalchemy.delete(PushData).where(
+            PushData.app_session_id.in_(app_session_id),
+        )
     else:
-        stmt = sqlalchemy.delete(PushData).where(PushData.app_session_id == app_session_id)
+        stmt = sqlalchemy.delete(PushData).where(
+            PushData.app_session_id == app_session_id,
+        )
 
     try:
         await db_session.execute(stmt)
@@ -271,7 +273,7 @@ async def decrease_delay_all(
     """
     Decrease delay for all push data records with delay > 0.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     stmt = sqlalchemy.update(PushData)
@@ -292,12 +294,12 @@ async def delete_for_app_session(
     app_session_id: uuid.UUID,
     *,
     commit: bool = True,
-    entity_id: Optional[str] = None,
+    entity_id: str | None = None,
 ):
     """
     Delete push data records for a certain app_session_id.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     stmt = sqlalchemy.delete(PushData).where(PushData.app_session_id == app_session_id)

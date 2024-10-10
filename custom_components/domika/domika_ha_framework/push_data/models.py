@@ -1,16 +1,8 @@
-# vim: set fileencoding=utf-8
-"""
-Push data.
+"""Push data models."""
 
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
-
-import uuid
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
+import uuid
 
 from mashumaro import pass_through
 from mashumaro.config import BaseConfig
@@ -79,8 +71,8 @@ class DomikaPushDataCreate(DomikaPushDataBase):
 class DomikaPushDataUpdate(DataClassJSONMixin):
     """Push data update model."""
 
-    value: Optional[str]
-    timestamp: Optional[int]
+    value: str | None
+    timestamp: int | None
 
     class Config(BaseConfig):
         """Mashumaro config."""

@@ -23,9 +23,13 @@ class DomikaConfigFlow(ConfigFlow, domain=DOMAIN):
     MINOR_VERSION = 0
 
     async def async_step_user(
-        self, _user_input: dict[str, str] | None = None
+        self,
+        user_input: dict[str, str] | None = None,
     ) -> ConfigFlowResult:
         """Handle a flow initialized by the user."""
+        # Preserve overload function interface, and avoid unused variable.
+        del user_input
+
         return self.async_create_entry(
             title=DOMAIN,
             # Data is immutable options.
@@ -107,7 +111,8 @@ class OptionsFlowHandler(OptionsFlow):
                     vol.Optional(
                         schema="critical_included_entity_ids",
                         default=critical_entities.get(
-                            "critical_included_entity_ids", []
+                            "critical_included_entity_ids",
+                            [],
                         ),
                     ): entity_selector,
                 },

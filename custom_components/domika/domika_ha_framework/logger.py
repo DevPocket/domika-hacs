@@ -1,12 +1,4 @@
-# vim: set fileencoding=utf-8
-"""
-domika-ha-framework.
-
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
+"""Domika homeassistant framework logger."""
 
 import logging
 

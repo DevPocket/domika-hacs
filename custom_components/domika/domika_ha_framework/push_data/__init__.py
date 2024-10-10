@@ -1,12 +1,4 @@
-# vim: set fileencoding=utf-8
-"""
-Push data.
-
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
+"""Push data module."""
 
 import asyncio
 import contextlib
@@ -56,8 +48,8 @@ async def _process_pushed_data_once(
                 confirmed_events.remove(event.event_id)
                 continue
 
-            # If event wait for confirmation more than allowed by threshold - prepare for write to
-            # the DB, prepare for requeueing.
+            # If event wait for confirmation more than allowed by threshold - prepare
+            # for write to the DB, prepare for requeueing.
             if timestamp - event.timestamp > threshold:
                 events_to_push.append(event)
             else:
@@ -65,8 +57,8 @@ async def _process_pushed_data_once(
 
     # Requeue events.
     for event in events_to_requeue:
-        # QueueFull should not be raised due to requeued events count is less or equal to
-        # previously read count.
+        # QueueFull should not be raised due to requeued events count is less or equal
+        # to previously read count.
         events_queue_.put_nowait(event)
 
     # Store events.
@@ -120,8 +112,10 @@ def start_push_data_processor(
 
     Args:
         interval: seconds between checks. Defaults to INTERVAL.
-        threshold: minimal time in seconds to wait event confirmation. Defaults to THRESHOLD.
-        store_chunk_size: size of chunk to store events in database. Defaults to STORE_CHUNK_SIZE.
+        threshold: minimal time in seconds to wait event confirmation. Defaults to
+            THRESHOLD.
+        store_chunk_size: size of chunk to store events in database. Defaults to
+            STORE_CHUNK_SIZE.
     """
     if _push_data_processor:
         return

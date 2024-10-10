@@ -1,15 +1,9 @@
 """Application device router."""
 
 import contextlib
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 import uuid
 
-from ..domika_ha_framework import errors, push_server_errors
-from ..domika_ha_framework.database import core as database_core
-from ..domika_ha_framework.device import flow as device_flow
-from ..domika_ha_framework.device import service as device_service
-from ..domika_ha_framework.errors import DomikaFrameworkBaseError
-from hass_nabucasa import Cloud
 import voluptuous as vol
 
 from homeassistant.components import network
@@ -29,6 +23,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from ..const import DOMAIN, LOGGER
+from ..domika_ha_framework import errors, push_server_errors
+from ..domika_ha_framework.database import core as database_core
+from ..domika_ha_framework.device import flow as device_flow, service as device_service
+from ..domika_ha_framework.errors import DomikaFrameworkBaseError
+
+if TYPE_CHECKING:
+    from hass_nabucasa import Cloud
 
 
 async def _get_hass_network_properties(hass: HomeAssistant) -> dict:
@@ -86,9 +87,11 @@ def _check_app_compatibility(
     app_id: str,
     app_version: str,
 ) -> bool:
-    if app_version == "0":
-        return False
-    return True
+    del os_platform
+    del os_version
+    del app_id
+
+    return app_version != "0"
 
 
 @websocket_command(
@@ -122,7 +125,10 @@ async def websocket_domika_update_app_session(
     app_id: str = msg.get("app_id", "")
     app_version: str = msg.get("app_version", "")
     app_compatible = _check_app_compatibility(
-        os_platform.lower(), os_version.lower(), app_id.lower(), app_version.lower()
+        os_platform.lower(),
+        os_version.lower(),
+        app_id.lower(),
+        app_version.lower(),
     )
     if not app_compatible:
         LOGGER.error("Update_app_session unsupported app or platform")
@@ -354,8 +360,8 @@ async def _create_push_session(
         )
         LOGGER.info(
             "Push session creation process successfully initialized. "
-            'original_transaction_id="%s", platform="%s", environment="%s", push_token="%s", '
-            'app_session_id="%s" ',
+            'original_transaction_id="%s", platform="%s", environment="%s", '
+            'push_token="%s", app_session_id="%s" ',
             original_transaction_id,
             platform,
             environment,
@@ -365,8 +371,8 @@ async def _create_push_session(
     except ValueError as e:
         LOGGER.error(
             "Can't initialize push session creation. "
-            'original_transaction_id="%s", platform="%s", environment="%s", push_token="%s", '
-            'app_session_id="%s" %s',
+            'original_transaction_id="%s", platform="%s", environment="%s", '
+            'push_token="%s", app_session_id="%s" %s',
             original_transaction_id,
             platform,
             environment,
@@ -377,8 +383,8 @@ async def _create_push_session(
     except push_server_errors.DomikaPushServerError as e:
         LOGGER.error(
             "Can't initialize push session creation. "
-            'original_transaction_id="%s", platform="%s", environment="%s", push_token="%s", '
-            'app_session_id="%s" Push server error. %s',
+            'original_transaction_id="%s", platform="%s", environment="%s", '
+            'push_token="%s", app_session_id="%s" Push server error. %s',
             original_transaction_id,
             platform,
             environment,
@@ -389,8 +395,8 @@ async def _create_push_session(
     except Exception:  # noqa: BLE001
         LOGGER.exception(
             "Can't initialize push session creation. "
-            'original_transaction_id="%s", platform="%s", environment="%s", push_token="%s", '
-            'app_session_id="%s" Unhandled error',
+            'original_transaction_id="%s", platform="%s", environment="%s", '
+            'push_token="%s", app_session_id="%s" Unhandled error',
             original_transaction_id,
             platform,
             environment,
@@ -474,14 +480,16 @@ async def _remove_app_session(hass: HomeAssistant, app_session_id: uuid.UUID) ->
                 pass
             except push_server_errors.BadRequestError as e:
                 LOGGER.error(
-                    'Can\'t remove push session for app session "%s". Push server error. %s. %s',
+                    'Can\'t remove push session for app session "%s". '
+                    "Push server error. %s. %s",
                     app_session_id,
                     e,
                     e.body,
                 )
             except push_server_errors.DomikaPushServerError as e:
                 LOGGER.error(
-                    'Can\'t remove push session for app session "%s". Push server error. %s',
+                    'Can\'t remove push session for app session "%s". '
+                    "Push server error. %s",
                     app_session_id,
                     e,
                 )
@@ -555,7 +563,8 @@ async def _verify_push_session(
         )
     except (ValueError, errors.AppSessionIdNotFoundError) as e:
         LOGGER.error(
-            'Can\'t verify verification key "%s" for application "%s". Push token hash "%s". %s',
+            'Can\'t verify verification key "%s" for application "%s". '
+            'Push token hash "%s". %s',
             verification_key,
             app_session_id,
             push_token_hash,
@@ -563,8 +572,8 @@ async def _verify_push_session(
         )
     except push_server_errors.BadRequestError as e:
         LOGGER.error(
-            'Can\'t verify verification key "%s" for application "%s". Push server error. '
-            'Push token hash "%s". %s. %s',
+            'Can\'t verify verification key "%s" for application "%s". '
+            'Push server error. Push token hash "%s". %s. %s',
             verification_key,
             app_session_id,
             push_token_hash,
@@ -573,8 +582,8 @@ async def _verify_push_session(
         )
     except push_server_errors.DomikaPushServerError as e:
         LOGGER.error(
-            'Can\'t verify verification key "%s" for application "%s". Push server error. '
-            'Push token hash "%s". %s',
+            'Can\'t verify verification key "%s" for application "%s". '
+            'Push server error. Push token hash "%s". %s',
             verification_key,
             app_session_id,
             push_token_hash,
@@ -582,8 +591,8 @@ async def _verify_push_session(
         )
     except errors.DomikaFrameworkBaseError as e:
         LOGGER.error(
-            'Can\'t verify verification key "%s" for application "%s". Framework error. '
-            'Push token hash "%s". %s',
+            'Can\'t verify verification key "%s" for application "%s". '
+            'Framework error. Push token hash "%s". %s',
             verification_key,
             app_session_id,
             push_token_hash,
@@ -591,8 +600,8 @@ async def _verify_push_session(
         )
     except Exception:  # noqa: BLE001
         LOGGER.exception(
-            'Can\'t verify verification key "%s" for application "%s". Push token hash "%s". '
-            "Unhandled error",
+            'Can\'t verify verification key "%s" for application "%s". '
+            'Push token hash "%s". Unhandled error',
             verification_key,
             app_session_id,
             push_token_hash,

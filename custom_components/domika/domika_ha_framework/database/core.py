@@ -1,15 +1,7 @@
-# vim: set fileencoding=utf-8
-"""
-Database core.
+"""Database core."""
 
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
-
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import (
@@ -30,7 +22,7 @@ class NullSessionMaker:
 
     Need for not initialized AsyncSessionFactory.
 
-    Raise:
+    Raises:
         errors.DatabaseError: when try to access.
     """
 
@@ -38,11 +30,11 @@ class NullSessionMaker:
         msg = "Database not initialized."
         raise DatabaseError(msg)
 
-    async def __aexit__(self, _exc_type, _exc, _tb):  # noqa
+    async def __aexit__(self, _exc_type, _exc, _tb):  # noqa: ANN001
         pass
 
 
-ENGINE: Optional[AsyncEngine] = None
+ENGINE: AsyncEngine | None = None
 
 AsyncSessionFactory = NullSessionMaker
 
@@ -60,7 +52,7 @@ async def init_db():
 
     If previously initialized - close old database.
 
-    Raise:
+    Raises:
         errors.DatabaseError: if database can't be initialized.
     """
     global ENGINE, AsyncSessionFactory  # noqa: PLW0603

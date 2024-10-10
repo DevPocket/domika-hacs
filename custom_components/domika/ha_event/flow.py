@@ -1,8 +1,8 @@
 """HA event flow."""
 
+from collections.abc import Iterable
 import logging
 import uuid
-from typing import Iterable
 
 from homeassistant.const import ATTR_DEVICE_CLASS
 from homeassistant.core import (
@@ -43,7 +43,12 @@ async def register_event(
 
     attributes = _get_changed_attributes_from_event_data(event_data)
 
-    LOGGER.debug("Got event for entity: %s, attributes: %s, time fired: %s", entity_id, attributes, event.time_fired)
+    LOGGER.debug(
+        "Got event for entity: %s, attributes: %s, time fired: %s",
+        entity_id,
+        attributes,
+        event.time_fired,
+    )
 
     if not attributes:
         return
@@ -79,7 +84,8 @@ async def register_event(
     ]
 
     critical_push_needed = (
-        critical_sensor_service.critical_push_needed(hass, entity_id) and ("s", "on") in attributes
+        critical_sensor_service.critical_push_needed(hass, entity_id)
+        and ("s", "on") in attributes
     )
 
     critical_alert_payload = (
@@ -93,8 +99,8 @@ async def register_event(
             [attribute[0] for attribute in attributes],
         )
 
-        # If any app_session_ids are subscribed for these attributes - fire the event to those
-        # app_session_ids for app to catch.
+        # If any app_session_ids are subscribed for these attributes - fire the event
+        # to those app_session_ids for app to catch.
         if app_session_ids:
             _fire_event_to_app_session_ids(
                 hass,
@@ -159,7 +165,11 @@ def _log_pushed_events(
 
         # Entities with their changed attributes.
         data = str(pushed_event.events)
-        data = data[:max_events_msg_len] + "..." if len(data) > max_events_msg_len else data
+        data = (
+            data[:max_events_msg_len] + "..."
+            if len(data) > max_events_msg_len
+            else data
+        )
 
         LOGGER.debug(
             "Pushed %s changed attributes in %s entities for %s push_session_id: %s",

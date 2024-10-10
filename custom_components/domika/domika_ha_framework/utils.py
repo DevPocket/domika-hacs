@@ -1,35 +1,27 @@
-# vim: set fileencoding=utf-8
-"""
-Domika integration.
+"""Domika homeassistant framework commonly used functions."""
 
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
-
+from collections.abc import Generator, Iterable, Iterator, Mapping
 import datetime
 import enum
 import itertools
-from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any, Generator, Iterator, TypeVar
+from typing import TypeVar
 
 from .cache import CacheKey, cache_key
 
 T = TypeVar("T")
 
 
-def _json_encoder(obj: Any) -> Any:  # noqa: PLR0911
+def _json_encoder(obj: object) -> object:  # noqa: PLR0911
     """Convert objects to a form suitable for flattening."""
     if isinstance(obj, (set, tuple)):
         return list(obj)
     if isinstance(obj, enum.Enum):
         return obj.value
     if hasattr(obj, "as_compressed_state"):
-        return obj.as_compressed_state
+        return obj.as_compressed_state  # type: ignore[reportAttributeAccessIssue]
     if hasattr(obj, "as_dict"):
-        return obj.as_dict()
+        return obj.as_dict()  # type: ignore[reportAttributeAccessIssue]
     if isinstance(obj, Path):
         return obj.as_posix()
     if isinstance(obj, datetime.datetime):
@@ -37,7 +29,7 @@ def _json_encoder(obj: Any) -> Any:  # noqa: PLR0911
     return obj
 
 
-def _flatten(x: Any, name: str, flattened_json: dict, exclude: set[str] | None):
+def _flatten(x: object, name: str, flattened_json: dict, exclude: set[str] | None):
     if exclude and name in exclude:
         return
 
@@ -59,7 +51,8 @@ def flatten_json(json: Mapping, exclude: set[str] | None = None) -> dict:
     """
     Generate flattened json dict.
 
-    Flatten json to the linear structure, excluding unwanted attributes including their children.
+    Flatten json to the linear structure, excluding unwanted attributes including their
+    children.
 
     Args:
         json: original json dict.
@@ -107,7 +100,7 @@ def chunks(iterable: Iterable[T], size: int) -> Generator[Iterator[T], None, Non
         size: single chunk size.
 
     Yields:
-        iterator to a new chunk.
+        Iterator to a new chunk.
     """
     iterator = iter(iterable)
     for first in iterator:

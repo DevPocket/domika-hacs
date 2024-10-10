@@ -1,12 +1,4 @@
-# vim: set fileencoding=utf-8
-"""
-Domika integration.
-
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
+"""Domika push server errors."""
 
 import uuid
 
@@ -45,7 +37,9 @@ class PushSessionIdNotFoundError(DomikaPushServerError):
     """Push session id found on the push server."""
 
     def __init__(self, push_session_id: uuid.UUID):
-        super().__init__(f'Push session with id "{push_session_id}" not found on the push server')
+        super().__init__(
+            f'Push session with id "{push_session_id}" not found on the push server',
+        )
         self.push_session_id = push_session_id
 
 
@@ -53,8 +47,8 @@ class PushTokenMismatchError(DomikaPushServerError):
     """
     Push token sent to the server does not match.
 
-    Push token sent to the server does not match the one already registered on the server for this
-    push session.
+    Push token sent to the server does not match the one already registered on the
+    server for this push session.
     """
 
     def __init__(self, push_token: str):

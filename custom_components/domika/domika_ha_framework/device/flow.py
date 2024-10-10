@@ -1,12 +1,4 @@
-# vim: set fileencoding=utf-8
-"""
-Application device.
-
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
+"""Application device flow functions."""
 
 import json
 import uuid
@@ -31,8 +23,8 @@ async def update_app_session_id(
     """
     Update or create app session id.
 
-    If the session exists - updates its last_update and returns its id. Otherwise, it creates a new
-    session and returns its id.
+    If the session exists - updates its last_update and returns its id. Otherwise, it
+    creates a new session and returns its id.
 
     Args:
         db_session: sqlalchemy session.
@@ -41,9 +33,10 @@ async def update_app_session_id(
         push_token_hash: hash of push_token+platform+environment.
 
     Returns:
-        If the session exists - returns app_session_id. Otherwise, returns newly created session id.
+        If the session exists - returns app_session_id. Otherwise, returns newly created
+        session id.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     new_app_session_id: uuid.UUID | None = None
@@ -126,12 +119,13 @@ async def remove_push_session(
     Raises:
         errors.DatabaseError: in case when database operation can't be performed.
         errors.AppSessionIdNotFoundError: if app session not found.
-        errors.PushSessionIdNotFoundError: if push session id not found on the integration.
-        push_server_errors.PushSessionIdNotFoundError: if push session id not found on the push
-        server.
+        errors.PushSessionIdNotFoundError: if push session id not found on the
+            integration.
+        push_server_errors.PushSessionIdNotFoundError: if push session id not found on
+            the push server.
         push_server_errors.BadRequestError: if push server response with bad request.
-        push_server_errors.UnexpectedServerResponseError: if push server response with unexpected
-        status.
+        push_server_errors.UnexpectedServerResponseError: if push server response with
+            unexpected status.
     """
     device = await device_service.get(db_session, app_session_id)
     if not device:
@@ -142,7 +136,11 @@ async def remove_push_session(
     push_session_id = device.push_session_id
 
     try:
-        await device_service.update(db_session, device, DomikaDeviceUpdate(push_session_id=None))
+        await device_service.update(
+            db_session,
+            device,
+            DomikaDeviceUpdate(push_session_id=None),
+        )
         async with (
             http_session.delete(
                 f"{config.CONFIG.push_server_url}/push_session",
@@ -191,13 +189,20 @@ async def create_push_session(
         app_session_id: application push session id.
 
     Raises:
-        ValueError: if original_transaction_id, push_token, platform or environment is empty.
+        ValueError: if original_transaction_id, push_token, platform or environment is
+            empty.
         errors.DatabaseError: in case when database operation can't be performed.
         push_server_errors.BadRequestError: if push server response with bad request.
-        push_server_errors.UnexpectedServerResponseError: if push server response with unexpected
-        status.
+        push_server_errors.UnexpectedServerResponseError: if push server response with
+            unexpected status.
     """
-    if not (original_transaction_id and push_token and platform and environment and app_session_id):
+    if not (
+        original_transaction_id
+        and push_token
+        and platform
+        and environment
+        and app_session_id
+    ):
         msg = "One of the parameters is missing"
         raise ValueError(msg)
 
@@ -236,7 +241,8 @@ async def verify_push_session(
     """
     Finishes push session generation.
 
-    After successful generation store new push session id for device with given app_session_id.
+    After successful generation store new push session id for device with given
+    app_session_id.
 
     Args:
         db_session: sqlalchemy session.
@@ -250,8 +256,8 @@ async def verify_push_session(
         errors.DatabaseError: in case when database operation can't be performed.
         errors.AppSessionIdNotFoundError: if app session not found.
         push_server_errors.BadRequestError: if push server response with bad request.
-        push_server_errors.UnexpectedServerResponseError: if push server response with unexpected
-        status.
+        push_server_errors.UnexpectedServerResponseError: if push server response with
+            unexpected status.
         push_server_errors.ResponseError: if push server response with malformed data.
     """
     if not verification_key:
@@ -281,8 +287,8 @@ async def verify_push_session(
                 except ValueError:
                     msg = "Malformed push_session_id."
                     raise push_server_errors.ResponseError(msg) from None
-                # Remove Devices with the same push_token_hash (if not empty), except current
-                # device.
+                # Remove Devices with the same push_token_hash (if not empty), except
+                # current device.
                 if push_token_hash:
                     await device_service.remove_all_with_push_token_hash(
                         db_session,

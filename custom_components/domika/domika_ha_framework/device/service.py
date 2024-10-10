@@ -1,15 +1,8 @@
-# vim: set fileencoding=utf-8
-"""
-Application device.
+"""Application device service functions."""
 
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
-
+from collections.abc import Sequence
+from typing import overload
 import uuid
-from typing import Sequence, overload
 
 import sqlalchemy
 from sqlalchemy import select
@@ -27,7 +20,7 @@ async def get(db_session: AsyncSession, app_session_id: uuid.UUID) -> Device | N
     """
     Get device by application session id.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     stmt = select(Device).where(Device.app_session_id == app_session_id)
@@ -45,10 +38,15 @@ async def get_all(
     """
     Get all devices.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
-    stmt = sqlalchemy.select(Device).order_by(Device.app_session_id).limit(limit).offset(offset)
+    stmt = (
+        sqlalchemy.select(Device)
+        .order_by(Device.app_session_id)
+        .limit(limit)
+        .offset(offset)
+    )
     try:
         return (await db_session.scalars(stmt)).all()
     except SQLAlchemyError as e:
@@ -60,20 +58,25 @@ async def get_all_with_push_session_id() -> Sequence[Device]: ...
 
 
 @overload
-async def get_all_with_push_session_id(db_session: AsyncSession) -> Sequence[Device]: ...
+async def get_all_with_push_session_id(
+    db_session: AsyncSession,
+) -> Sequence[Device]: ...
 
 
 @cached(cache_key_ignore_first_arg)
-async def get_all_with_push_session_id(db_session: AsyncSession | None = None) -> Sequence[Device]:
+async def get_all_with_push_session_id(
+    db_session: AsyncSession | None = None,
+) -> Sequence[Device]:
     """
     Get all devices which have push_session_id.
 
     If cached value exists - return cached value, load and return cached otherwise.
-    Returned ORM objects are not bound to any database session. So you can't use them for database
-    manipulation. If you need bound objects use .without_cache() from this function.
+    Returned ORM objects are not bound to any database session. So you can't use them
+    for database manipulation. If you need bound objects use .without_cache() from this
+    function.
 
-    If db_session is not set - create database session implicitly, .without_cache() make no sense in
-    this case.
+    If db_session is not set - create database session implicitly, .without_cache() make
+    no sense in this case.
 
     Args:
         db_session: optional sqlalchemy database session. Defaults to None.
@@ -99,7 +102,7 @@ async def get_by_user_id(db_session: AsyncSession, user_id: str) -> Sequence[Dev
     """
     Get device by user id.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     stmt = select(Device).where(Device.user_id == user_id)
@@ -116,7 +119,7 @@ async def get_all_with_push_token_hash(
     """
     Get all devices with given push_token_hash.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     stmt = select(Device).where(Device.push_token_hash == push_token_hash)
@@ -136,7 +139,7 @@ async def remove_all_with_push_token_hash(
     """
     Remove all devices with the given push_token_hash.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     stmt = (
@@ -166,7 +169,7 @@ async def create(
     """
     Create new device.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     device = Device(**device_in.to_dict())
@@ -196,7 +199,7 @@ async def update(
     """
     Update device model.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     device_data = device.dict()
@@ -228,7 +231,7 @@ async def update_in_place(
     """
     Update device in place.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     stmt = sqlalchemy.update(Device)
@@ -248,11 +251,16 @@ async def update_in_place(
         raise DatabaseError(str(e)) from e
 
 
-async def delete(db_session: AsyncSession, app_session_id: uuid.UUID, *, commit: bool = True):
+async def delete(
+    db_session: AsyncSession,
+    app_session_id: uuid.UUID,
+    *,
+    commit: bool = True,
+):
     """
     Delete device.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     stmt = sqlalchemy.delete(Device).where(Device.app_session_id == app_session_id)

@@ -1,14 +1,4 @@
-# vim: set fileencoding=utf-8
-"""
-Domika integration.
-
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
-
-# HTTP response statuses.
+"""HTTP response statuses."""
 
 HTTP_100_CONTINUE = 100
 HTTP_101_SWITCHING_PROTOCOLS = 101

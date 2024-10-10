@@ -1,12 +1,4 @@
-# vim: set fileencoding=utf-8
-"""
-Database core.
-
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
+"""Database management functions."""
 
 import asyncio
 import os
@@ -40,10 +32,15 @@ async def migrate():
     """
     Perform database migration.
 
-    All this strange stuff is made only for one reason - avoid HA warning about synchronous calls.
+    All this strange stuff is made only for one reason - avoid HA warning about
+    synchronous calls.
     Alembic developers do not plan to do true async migrations.
     """
-    # Clear DOMIKA_DB_URL environment variable. It should be used only with alembic direct call.
+    # Clear DOMIKA_DB_URL environment variable. It should be used only with alembic
+    # direct call.
     os.environ["DOMIKA_DB_URL"] = ""
-    await asyncio.get_event_loop().run_in_executor(None, lambda: asyncio.run(_migrate()))
+    await asyncio.get_event_loop().run_in_executor(
+        None,
+        lambda: asyncio.run(_migrate()),
+    )
     logger.logger.debug("Database migration successful")

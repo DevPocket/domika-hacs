@@ -1,15 +1,7 @@
-# vim: set fileencoding=utf-8
-"""
-Subscription data.
+"""User event subscriptions flow functions."""
 
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
-
-import uuid
 from contextlib import suppress
+import uuid
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,7 +52,8 @@ async def resubscribe_push(
     """
     Set need_push for given app_session_id.
 
-    Set need_push to true for given entities attributes, for all other set need_push to false.
+    Set need_push to true for given entities attributes, for all other set need_push to
+    false.
 
     Raises:
         errors.DatabaseError: in case when database operation can't be performed.
@@ -90,7 +83,11 @@ async def resubscribe_push(
         raise DatabaseError(str(e)) from e
 
 
-async def get_push_attributes(db_session: AsyncSession, app_session_id: uuid.UUID) -> list:
+# TODO: return more strict type
+async def get_push_attributes(
+    db_session: AsyncSession,
+    app_session_id: uuid.UUID,
+) -> list:
     """
     Return list of entity_id grouped with their attributes for given app session id.
 
@@ -132,7 +129,7 @@ async def get_push_attributes(db_session: AsyncSession, app_session_id: uuid.UUI
             current_entity = subscription.entity_id
         else:
             # entity_attributes always exists in this case.
-            entity_attributes["attributes"].append(subscription.attribute)  # type: ignore
+            entity_attributes["attributes"].append(subscription.attribute)
 
     return result
 
@@ -142,7 +139,10 @@ async def get_app_session_id_by_attributes(
     attributes: list[str],
 ) -> set[uuid.UUID]:
     """
-    Get all app session id's for which given entity_id contains attribute from attributes.
+    Get app session id's subscribed for entity attribute changes.
+
+    Get all app session id's for which given entity_id contains attribute from
+    attributes.
 
     Args:
         entity_id: homeassistant entity id.

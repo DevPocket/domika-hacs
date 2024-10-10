@@ -1,16 +1,7 @@
-# vim: set fileencoding=utf-8
-"""
-domika-ha-framework.
-
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
+"""Domika homeassistant framework."""
 
 from . import config, push_data
-from .database import core as database_core
-from .database import manage as database_manage
+from .database import core as database_core, manage as database_manage
 
 
 async def init(cfg: config.Config):
@@ -19,7 +10,7 @@ async def init(cfg: config.Config):
 
     Perform migration if needed.
 
-    Raise:
+    Raises:
         DatabaseError, if can't be initialized.
     """
     config.CONFIG = cfg

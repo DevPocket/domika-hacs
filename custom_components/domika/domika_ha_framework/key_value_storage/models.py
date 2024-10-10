@@ -1,12 +1,4 @@
-# vim: set fileencoding=utf-8
-"""
-Application key-value storage.
-
-(c) DevPocket, 2024
-
-
-Author(s): Michael Bogorad
-"""
+"""Application key-value storage models."""
 
 from dataclasses import dataclass
 
@@ -19,7 +11,7 @@ from ..models import AsyncBase
 class KeyValue(AsyncBase):
     """Application key-value storage."""
 
-    __tablename__ = 'key_value'
+    __tablename__ = "key_value"
 
     user_id: Mapped[str] = mapped_column(primary_key=True)
     key: Mapped[str] = mapped_column(primary_key=True)
@@ -45,6 +37,6 @@ class DomikaKeyValueCreate(DomikaKeyValueBase):
 @dataclass
 class DomikaKeyValueRead(DataClassJSONMixin):
     """Key-value read model."""
+
     user_id: str
     key: str
-

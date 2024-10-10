@@ -13,6 +13,7 @@ exclude = [
   ".svn",
   ".tox",
   ".venv",
+  ".pytest_cache",
   "__pypackages__",
   "_build",
   "buck-out",
@@ -22,7 +23,7 @@ exclude = [
   "venv",
 ]
 
-line-length = 100
+line-length = 88
 indent-width = 4
 
 target-version = "py312"
@@ -34,54 +35,71 @@ skip-magic-trailing-comma = false
 
 [lint]
 select = [
-  "E",
-  "W",
-  "F",
-  "PL",
-  "S",
-  "B",
-  "D",
-  "N",
-  "ANN",
-  "ASYNC",
-  "BLE001",
-  "FBT",
-  "A",
-  "COM",
-  "C4",
-  "DTZ",
-  "EM",
-  "ISC",
-  "ICN",
-  "G",
-  "PIE",
-  "T20",
-  "PT",
-  "RET",
-  "SLF",
-  "SIM",
-  "ARG",
-  "PTH",
-  "ERA",
-  "RUF006",
-  "RUF013",
-  "RUF100",
+  "A",      # flake8-builtins
+  "ANN",    # flake8-annotations
+  "ARG",    # flake8-unused-arguments
+  "ASYNC",  # flake8-async
+  "B",      # flake8-bugbear
+  "BLE",    # flake8-blind-except
+  "C4",     # flake8-comprehensions
+  "COM",    # flake8-commas
+  "D",      # pydocstyle
+  "DTZ",    # flake8-datetimez
+  "E",      # Error
+  "EM",     # flake8-errmsg
+  "ERA",    # eradicate
+  "F",      # Pyflakes
+  "FLY",    # flynt
+  "FURB",   # refurb
+  "FBT",    # flake8-boolean-trap
+  "G",      # flake8-logging-format
+  "I",      # isort
+  "INP",    # flake8-no-pep420
+  "ICN",    # flake8-import-conventions
+  "ISC",    # flake8-implicit-str-concat
+  "LOG",    # flake8-logging
+  "N",      # pep8-naming
+  "PERF",   # Perflint
+  "PGH",    # pygrep-hooks
+  "PIE",    # flake8-pie
+  "PL",     # Pylint
+  "PT",     # flake8-pytest-style
+  "PTH",    # flake8-use-pathlib
+  "PYI",    # flake8-pyi
+  "RET",    # flake8-return
+  "RUF005", # collection-literal-concatenation
+  "RUF006", # asyncio-dangling-task
+  "RUF010", # explicit-f-string-type-conversion
+  "RUF013", # implicit-optional
+  "RUF017", # quadratic-list-summation
+  "RUF018", # assignment-in-assert
+  "RUF100", # unused-noqa
+  "S",      # flake8-bandit
+  "SIM",    # flake8-simplify
+  "SLF",    # flake8-self
+  "SLOT",   # flake8-slots
+  "T10",    # flake8-debugger
+  "T20",    # flake8-print
+  "TCH",    # flake8-type-checking
+  "TRY",    # tryceratops
+  "UP",     # pyupgrade
+  "W",      # Warning
 ]
 ignore = [
-  "D212",
-  "D203",
-  "D105",
-  "D107",
-  "ANN002",
-  "ANN003",
-  "ANN101",
-  "ANN102",
-  "ANN401",
-  "PLR0913",
+  "ANN002",  # missing-type-args
+  "ANN003",  # missing-type-kwargs
+  "ANN101",  # missing-type-self
+  "ANN102",  # missing-type-cls
+  "D105",    # undocumented-magic-method
+  "D107",    # undocumented-public-init
+  "D203",    # one-blank-line-before-class
+  "D212",    # multi-line-summary-first-line
+  "PLR0913", # too-many-arguments # Too strict
+  "UP038",   # Use `X | Y` in `isinstance` call instead of `(X, Y)` # Ignored due to performance: https://github.com/charliermarsh/ruff/issues/2923
 ]
 
 [lint.pycodestyle]
-max-line-length = 100
+max-line-length = 88
 ignore-overlong-task-comments = false
 
 [lint.pydocstyle]
@@ -96,6 +114,69 @@ suppress-none-returning = true
 [lint.flake8-builtins]
 builtins-ignorelist = ["id"]
 
+[lint.flake8-import-conventions.extend-aliases]
+voluptuous = "vol"
+"homeassistant.components.air_quality.PLATFORM_SCHEMA" = "AIR_QUALITY_PLATFORM_SCHEMA"
+"homeassistant.components.alarm_control_panel.PLATFORM_SCHEMA" = "ALARM_CONTROL_PANEL_PLATFORM_SCHEMA"
+"homeassistant.components.binary_sensor.PLATFORM_SCHEMA" = "BINARY_SENSOR_PLATFORM_SCHEMA"
+"homeassistant.components.button.PLATFORM_SCHEMA" = "BUTTON_PLATFORM_SCHEMA"
+"homeassistant.components.calendar.PLATFORM_SCHEMA" = "CALENDAR_PLATFORM_SCHEMA"
+"homeassistant.components.camera.PLATFORM_SCHEMA" = "CAMERA_PLATFORM_SCHEMA"
+"homeassistant.components.climate.PLATFORM_SCHEMA" = "CLIMATE_PLATFORM_SCHEMA"
+"homeassistant.components.conversation.PLATFORM_SCHEMA" = "CONVERSATION_PLATFORM_SCHEMA"
+"homeassistant.components.cover.PLATFORM_SCHEMA" = "COVER_PLATFORM_SCHEMA"
+"homeassistant.components.date.PLATFORM_SCHEMA" = "DATE_PLATFORM_SCHEMA"
+"homeassistant.components.datetime.PLATFORM_SCHEMA" = "DATETIME_PLATFORM_SCHEMA"
+"homeassistant.components.device_tracker.PLATFORM_SCHEMA" = "DEVICE_TRACKER_PLATFORM_SCHEMA"
+"homeassistant.components.event.PLATFORM_SCHEMA" = "EVENT_PLATFORM_SCHEMA"
+"homeassistant.components.fan.PLATFORM_SCHEMA" = "FAN_PLATFORM_SCHEMA"
+"homeassistant.components.geo_location.PLATFORM_SCHEMA" = "GEO_LOCATION_PLATFORM_SCHEMA"
+"homeassistant.components.humidifier.PLATFORM_SCHEMA" = "HUMIDIFIER_PLATFORM_SCHEMA"
+"homeassistant.components.image.PLATFORM_SCHEMA" = "IMAGE_PLATFORM_SCHEMA"
+"homeassistant.components.image_processing.PLATFORM_SCHEMA" = "IMAGE_PROCESSING_PLATFORM_SCHEMA"
+"homeassistant.components.lawn_mower.PLATFORM_SCHEMA" = "LAWN_MOWER_PLATFORM_SCHEMA"
+"homeassistant.components.light.PLATFORM_SCHEMA" = "LIGHT_PLATFORM_SCHEMA"
+"homeassistant.components.lock.PLATFORM_SCHEMA" = "LOCK_PLATFORM_SCHEMA"
+"homeassistant.components.media_player.PLATFORM_SCHEMA" = "MEDIA_PLAYER_PLATFORM_SCHEMA"
+"homeassistant.components.notify.PLATFORM_SCHEMA" = "NOTIFY_PLATFORM_SCHEMA"
+"homeassistant.components.number.PLATFORM_SCHEMA" = "NUMBER_PLATFORM_SCHEMA"
+"homeassistant.components.remote.PLATFORM_SCHEMA" = "REMOTE_PLATFORM_SCHEMA"
+"homeassistant.components.scene.PLATFORM_SCHEMA" = "SCENE_PLATFORM_SCHEMA"
+"homeassistant.components.select.PLATFORM_SCHEMA" = "SELECT_PLATFORM_SCHEMA"
+"homeassistant.components.sensor.PLATFORM_SCHEMA" = "SENSOR_PLATFORM_SCHEMA"
+"homeassistant.components.siren.PLATFORM_SCHEMA" = "SIREN_PLATFORM_SCHEMA"
+"homeassistant.components.stt.PLATFORM_SCHEMA" = "STT_PLATFORM_SCHEMA"
+"homeassistant.components.switch.PLATFORM_SCHEMA" = "SWITCH_PLATFORM_SCHEMA"
+"homeassistant.components.text.PLATFORM_SCHEMA" = "TEXT_PLATFORM_SCHEMA"
+"homeassistant.components.time.PLATFORM_SCHEMA" = "TIME_PLATFORM_SCHEMA"
+"homeassistant.components.todo.PLATFORM_SCHEMA" = "TODO_PLATFORM_SCHEMA"
+"homeassistant.components.tts.PLATFORM_SCHEMA" = "TTS_PLATFORM_SCHEMA"
+"homeassistant.components.vacuum.PLATFORM_SCHEMA" = "VACUUM_PLATFORM_SCHEMA"
+"homeassistant.components.valve.PLATFORM_SCHEMA" = "VALVE_PLATFORM_SCHEMA"
+"homeassistant.components.update.PLATFORM_SCHEMA" = "UPDATE_PLATFORM_SCHEMA"
+"homeassistant.components.wake_word.PLATFORM_SCHEMA" = "WAKE_WORD_PLATFORM_SCHEMA"
+"homeassistant.components.water_heater.PLATFORM_SCHEMA" = "WATER_HEATER_PLATFORM_SCHEMA"
+"homeassistant.components.weather.PLATFORM_SCHEMA" = "WEATHER_PLATFORM_SCHEMA"
+"homeassistant.core.DOMAIN" = "HOMEASSISTANT_DOMAIN"
+"homeassistant.helpers.area_registry" = "ar"
+"homeassistant.helpers.category_registry" = "cr"
+"homeassistant.helpers.config_validation" = "cv"
+"homeassistant.helpers.device_registry" = "dr"
+"homeassistant.helpers.entity_registry" = "er"
+"homeassistant.helpers.floor_registry" = "fr"
+"homeassistant.helpers.issue_registry" = "ir"
+"homeassistant.helpers.label_registry" = "lr"
+"homeassistant.util.dt" = "dt_util"
+
+[lint.isort]
+force-sort-within-sections = true
+known-first-party = ["homeassistant"]
+combine-as-imports = true
+split-on-trailing-comma = false
+
 [lint.extend-per-file-ignores]
 "__init__.py" = ["F401"]
 "test*.py" = ["S101"]
+"custom_components/domika/domika_ha_framework/migrations/versions/*.py" = [
+  "INP",
+]

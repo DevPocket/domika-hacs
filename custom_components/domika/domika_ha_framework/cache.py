@@ -1,25 +1,9 @@
-# vim: set fileencoding=utf-8
-"""
-Cache functions.
-
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
+"""Cache functions and decorators."""
 
 import asyncio
+from collections.abc import Awaitable, Callable
 import functools
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Generic,
-    ParamSpec,
-    TypeVar,
-    final,
-    overload,
-)
+from typing import Generic, ParamSpec, TypeVar, final, overload
 
 T = TypeVar("T")
 Param = ParamSpec("Param")
@@ -35,7 +19,7 @@ class _CacheWrapper(Generic[Param, T]):
     def cache_clear(self) -> None:
         """Clear cache."""
 
-    def cache_size(self) -> int:  # type: ignore
+    def cache_size(self) -> int:  # type: ignore[reportReturnType]
         """
         Get cache size.
 
@@ -54,7 +38,7 @@ class CacheKey:
     def __init__(self, h: int) -> None:
         self.hash = h
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, CacheKey):
             return self.hash == other.hash
         return NotImplemented
@@ -68,11 +52,11 @@ def cache_key(*args, **kwargs) -> CacheKey:
     Default cache key generation function.
 
     Uses args and kwargs as input value for the hash function.
-    kwargs preserve the order input by the user, it means that f(x=1, y=2) will be treated as a
-    distinct call from f(y=2, x=1) which will be cached separately.
+    kwargs preserve the order input by the user, it means that f(x=1, y=2) will be
+    treated as a distinct call from f(y=2, x=1) which will be cached separately.
 
     Returns:
-        generated cache key.
+        Generated cache key.
     """
     key = args
     if kwargs:
@@ -97,17 +81,17 @@ def _cache_wrapper(
     def _size() -> int:
         return len(cache)
 
-    async def _inner(*args, **kwargs) -> Any:
+    async def _inner(*args, **kwargs) -> T:
         key = cache_key_(*args, **kwargs)
         if key not in cache:
             cache[key] = await user_function(*args, **kwargs)
         return cache[key]
 
-    _inner.without_cache = user_function  # type: ignore
-    _inner.cache_clear = _clear  # type: ignore
-    _inner.cache_size = _size  # type: ignore
+    _inner.without_cache = user_function  # type: ignore[reportFunctionMemberAccess]
+    _inner.cache_clear = _clear  # type: ignore[reportFunctionMemberAccess]
+    _inner.cache_size = _size  # type: ignore[reportFunctionMemberAccess]
 
-    return _inner  # type: ignore
+    return _inner
 
 
 @overload
@@ -124,37 +108,40 @@ def cached(
 
 def cached(
     cache_key_fn=cache_key,
-) -> _CacheWrapper[Param, T] | Callable[[Callable[Param, Awaitable[T]]], _CacheWrapper[Param, T]]:
+) -> (
+    _CacheWrapper[Param, T]
+    | Callable[[Callable[Param, Awaitable[T]]], _CacheWrapper[Param, T]]
+):
     """
     Decorator that caches returned value.
 
     Arguments to the cached function must be hashable.
-    kwargs preserve the order input by the user, it means that f(x=1, y=2) will be treated as a
-    distinct call from f(y=2, x=1) which will be cached separately.
+    kwargs preserve the order input by the user, it means that f(x=1, y=2) will be
+    treated as a distinct call from f(y=2, x=1) which will be cached separately.
 
-    Warning! This decorator will never clear cached values automatically. You should manually call
-    cache_clear, when it is needed.
+    Warning! This decorator will never clear cached values automatically. You should
+    manually call cache_clear, when it is needed.
 
     Args:
-        cache_key_fn: user defined cache key generation function in case when decorator used with
-        parameters, or wrapped function itself. Defaults to cache_key.
+        cache_key_fn: user defined cache key generation function in case when decorator
+            used with parameters, or wrapped function itself. Defaults to cache_key.
 
     Returns:
-        _CacheWrapper object, or function that return _CacheWrapper in case when decorator used with
-        parameters.
+        _CacheWrapper object, or function that return _CacheWrapper in case when
+            decorator used with parameters.
     """
     if asyncio.iscoroutinefunction(cache_key_fn):
-        # If cache_key_fn is a coroutine - that means that the decorator called without any
-        # parameters. So cache_key_fn is a wrapped user function.
+        # If cache_key_fn is a coroutine - that means that the decorator called without
+        # any parameters. So cache_key_fn is a wrapped user function.
         wrapped = cache_key_fn
         wrapper = _cache_wrapper(wrapped, cache_key)
-        return functools.update_wrapper(wrapper, wrapped)  # type: ignore
+        return functools.update_wrapper(wrapper, wrapped)  # type: ignore[reportReturnType]
 
     def decorating_function(
         wrapped: Callable[Param, Awaitable[T]],
     ) -> Callable[[Callable[Param, Awaitable[T]]], _CacheWrapper[Param, T]]:
         # wrapped - is a user function.
         wrapper = _cache_wrapper(wrapped, cache_key_fn)
-        return functools.update_wrapper(wrapper, wrapped)  # type: ignore
+        return functools.update_wrapper(wrapper, wrapped)  # type: ignore[reportReturnType]
 
-    return decorating_function  # type: ignore
+    return decorating_function  # type: ignore[reportReturnType]

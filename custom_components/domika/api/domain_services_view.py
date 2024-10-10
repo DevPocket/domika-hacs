@@ -5,15 +5,15 @@ from http import HTTPStatus
 import uuid
 
 from aiohttp import web
-from ..domika_ha_framework.database import core as database_core
-from ..domika_ha_framework.errors import DomikaFrameworkBaseError
-from ..domika_ha_framework.push_data import service as push_data_service
 
 from homeassistant.components.api import APIDomainServicesView
 from homeassistant.core import async_get_hass
 from homeassistant.helpers.json import json_bytes
 
 from ..const import DOMAIN, LOGGER
+from ..domika_ha_framework.database import core as database_core
+from ..domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..domika_ha_framework.push_data import service as push_data_service
 from ..ha_entity import service as ha_entity_service
 
 
@@ -24,7 +24,10 @@ class DomikaAPIDomainServicesView(APIDomainServicesView):
     name = "domika:domain-services"
 
     async def post(
-        self, request: web.Request, domain: str, service: str
+        self,
+        request: web.Request,
+        domain: str,
+        service: str,
     ) -> web.Response:
         """Retrieve if API is running."""
         # Check that integration still loaded.
@@ -46,7 +49,8 @@ class DomikaAPIDomainServicesView(APIDomainServicesView):
         delay = float(request.headers.get("X-Delay", 0.5))
 
         LOGGER.debug(
-            "DomikaAPIDomainServicesView, domain: %s, service: %s, app_session_id: %s, delay: %s",
+            "DomikaAPIDomainServicesView, domain: %s, service: %s, app_session_id: %s, "
+            "delay: %s",
             domain,
             service,
             app_session_id,
@@ -66,12 +70,14 @@ class DomikaAPIDomainServicesView(APIDomainServicesView):
         except DomikaFrameworkBaseError as e:
             LOGGER.error("DomikaAPIDomainServicesView post. Framework error. %s", e)
             return self.json_message(
-                "Framework error.", HTTPStatus.INTERNAL_SERVER_ERROR
+                "Framework error.",
+                HTTPStatus.INTERNAL_SERVER_ERROR,
             )
         except Exception:  # noqa: BLE001
             LOGGER.exception("DomikaAPIDomainServicesView post. Unhandled error")
             return self.json_message(
-                "Internal error.", HTTPStatus.INTERNAL_SERVER_ERROR
+                "Internal error.",
+                HTTPStatus.INTERNAL_SERVER_ERROR,
             )
 
         LOGGER.debug("DomikaAPIDomainServicesView data: %s", {"entities": result})

@@ -1,12 +1,4 @@
-# vim: set fileencoding=utf-8
-"""
-Application key-value storage.
-
-(c) DevPocket, 2024
-
-
-Author(s): Michael Bogorad
-"""
+"""Application key-value storage service functions."""
 
 import sqlalchemy
 import sqlalchemy.dialects.sqlite as sqlite_dialect
@@ -14,18 +6,23 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..errors import DatabaseError
-from .models import KeyValue, DomikaKeyValueCreate, DomikaKeyValueRead
+from .models import DomikaKeyValueCreate, DomikaKeyValueRead, KeyValue
 
 
-async def get(db_session: AsyncSession, key_value_read: DomikaKeyValueRead) -> KeyValue | None:
+async def get(
+    db_session: AsyncSession,
+    key_value_read: DomikaKeyValueRead,
+) -> KeyValue | None:
     """
     Get value by user id and key.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     try:
-        stmt = sqlalchemy.select(KeyValue).where(KeyValue.user_id == key_value_read.user_id)
+        stmt = sqlalchemy.select(KeyValue).where(
+            KeyValue.user_id == key_value_read.user_id,
+        )
         stmt = stmt.where(KeyValue.key == key_value_read.key)
         return await db_session.scalar(stmt)
     except SQLAlchemyError as e:
@@ -41,7 +38,7 @@ async def create_or_update(
     """
     Create or update key_value record.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
     stmt = sqlite_dialect.insert(KeyValue)
@@ -75,10 +72,12 @@ async def delete(
     """
     Delete key_value record.
 
-    Raise:
+    Raises:
         errors.DatabaseError: in case when database operation can't be performed.
     """
-    stmt = sqlalchemy.delete(KeyValue).where(KeyValue.user_id == user_id).where(KeyValue.key == key)
+    stmt = sqlalchemy.delete(KeyValue)
+    stmt = stmt.where(KeyValue.user_id == user_id)
+    stmt = stmt.where(KeyValue.key == key)
 
     try:
         await db_session.execute(stmt)

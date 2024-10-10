@@ -5,18 +5,18 @@ from typing import Any
 import uuid
 
 from aiohttp import web
-from ..domika_ha_framework.database import core as database_core
-from ..domika_ha_framework.errors import DomikaFrameworkBaseError
-from ..domika_ha_framework.subscription import flow as subscription_flow
 
 from homeassistant.core import async_get_hass
 from homeassistant.helpers.http import HomeAssistantView
 
 from ..const import DOMAIN, LOGGER
+from ..domika_ha_framework.database import core as database_core
+from ..domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..domika_ha_framework.subscription import flow as subscription_flow
 
 
 class DomikaAPIPushResubscribe(HomeAssistantView):
-    """Update subscriptions, set need_push=1 for the given attributes of given entities."""
+    """View for subscriptions update."""
 
     url = "/domika/push_resubscribe"
     name = "domika:push-resubscribe"
@@ -54,21 +54,28 @@ class DomikaAPIPushResubscribe(HomeAssistantView):
         try:
             async with database_core.get_session() as session:
                 await subscription_flow.resubscribe_push(
-                    session, app_session_id, subscriptions
+                    session,
+                    app_session_id,
+                    subscriptions,
                 )
         except DomikaFrameworkBaseError as e:
             LOGGER.error(
-                'Can\'t resubscribe push "%s". Framework error. %s', subscriptions, e
+                'Can\'t resubscribe push "%s". Framework error. %s',
+                subscriptions,
+                e,
             )
             return self.json_message(
-                "Internal error.", HTTPStatus.INTERNAL_SERVER_ERROR
+                "Internal error.",
+                HTTPStatus.INTERNAL_SERVER_ERROR,
             )
         except Exception:  # noqa: BLE001
             LOGGER.exception(
-                'Can\'t resubscribe push "%s". Unhandled error', subscriptions
+                'Can\'t resubscribe push "%s". Unhandled error',
+                subscriptions,
             )
             return self.json_message(
-                "Internal error.", HTTPStatus.INTERNAL_SERVER_ERROR
+                "Internal error.",
+                HTTPStatus.INTERNAL_SERVER_ERROR,
             )
 
         data = {"result": "success"}

@@ -82,9 +82,8 @@ def _capabilities_climate(hass: HomeAssistant, entity_id: str) -> set[str]:
 
 def _capabilities_cover(hass: HomeAssistant, entity_id: str) -> set[str]:
     capabilities = set()
-    supported_features = hass_entity.get_supported_features(
-        hass, entity_id
-    )  # CoverEntityFeature
+    # CoverEntityFeature
+    supported_features = hass_entity.get_supported_features(hass, entity_id)
     if supported_features & CoverEntityFeature.OPEN:
         capabilities.add("open")
     if supported_features & CoverEntityFeature.CLOSE:
@@ -198,7 +197,8 @@ def get_single(hass: HomeAssistant, entity_id: str) -> DomikaEntityInfo | None:
     if area:
         result.info["area"] = _related_area(hass, entity_id)
 
-    # Find out the capabilities of the entity, to be able to select widget size appropriately
+    # Find out the capabilities of the entity, to be able to select widget size
+    # appropriately.
     capabilities = set()
     if state.domain == Platform.LIGHT:
         capabilities = _capabilities_light(hass, entity_id)

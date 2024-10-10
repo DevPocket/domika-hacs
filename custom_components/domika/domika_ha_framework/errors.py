@@ -1,12 +1,4 @@
-# vim: set fileencoding=utf-8
-"""
-Domika integration.
-
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
+"""Domika homeassistant framework errors."""
 
 import uuid
 
@@ -31,5 +23,7 @@ class PushSessionIdNotFoundError(DomikaFrameworkBaseError):
     """Push session id found on the integration."""
 
     def __init__(self, app_session_id: uuid.UUID):
-        super().__init__(f'Push session id is missing for app session id "{app_session_id}".')
+        super().__init__(
+            f'Push session id is missing for app session id "{app_session_id}".',
+        )
         self.app_session_id = app_session_id

@@ -14,7 +14,6 @@ class NotificationType(enum.Flag):
         """Convert flag to string.
 
         Returns:
-            string flags representation.
-
+            String flags representation.
         """
         return "|".join(str(flag.name).lower() for flag in self)

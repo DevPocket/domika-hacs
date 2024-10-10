@@ -1,24 +1,18 @@
-# vim: set fileencoding=utf-8
-"""
-migrations.
-
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
+"""Migrations environment."""
 
 import asyncio
 import logging
-import os
 from logging.config import fileConfig
+import os
 
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from custom_components.domika.domika_ha_framework import config as domika_framework_config
+from custom_components.domika.domika_ha_framework import (
+    config as domika_framework_config,
+)
 from custom_components.domika.domika_ha_framework.models import AsyncBase
 
 # this is the Alembic Config object, which provides
@@ -27,7 +21,10 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-if config.config_file_name is not None and config.attributes.get("configure_loggers", True):
+if config.config_file_name is not None and config.attributes.get(
+    "configure_loggers",
+    True,
+):
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 else:
     alembic_logger = logging.getLogger("alembic")
@@ -40,7 +37,7 @@ target_metadata = AsyncBase.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
+# my_important_option = config.get_main_option("my_important_option")  # noqa: ERA001
 # ... etc.
 
 section = config.config_ini_section
@@ -79,6 +76,7 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
+    """Perform migration."""
     context.configure(connection=connection, target_metadata=target_metadata)
 
     with context.begin_transaction():

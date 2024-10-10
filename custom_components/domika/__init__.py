@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from functools import partial
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from aiohttp import ClientTimeout
+
 from homeassistant.components import websocket_api
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_STATE_CHANGED
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.start import async_at_started
-from homeassistant.helpers.typing import ConfigType
 
 from . import domika_ha_framework
 from .api.domain_services_view import DomikaAPIDomainServicesView
@@ -33,10 +32,14 @@ from .critical_sensor import router as critical_sensor_router
 from .device import router as device_router
 from .domika_ha_framework import config
 from .entity import router as entity_router
-from .ha_event import flow as ha_event_flow
-from .ha_event import router as ha_event_router
+from .ha_event import flow as ha_event_flow, router as ha_event_router
 from .key_value_storage import router as key_value_router
 from .subscription import router as subscription_router
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.typing import ConfigType
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
@@ -198,7 +201,7 @@ async def async_remove_entry(hass: HomeAssistant, _entry: ConfigEntry) -> None:
     # Delete database.
     db_path = f"{hass.config.path()}/{DB_NAME}"
     try:
-        os.remove(db_path)
+        Path(db_path).unlink()
     except OSError:
         LOGGER.error('Can\'t remove database "%s"', db_path)
 

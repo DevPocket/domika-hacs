@@ -1,12 +1,4 @@
-# vim: set fileencoding=utf-8
-"""
-Push data.
-
-(c) DevPocket, 2024
-
-
-Author(s): Artem Bezborodko
-"""
+"""Push data flow functions."""
 
 import json
 import uuid
@@ -57,8 +49,8 @@ async def register_event(
         errors.DatabaseError: in case when database operation can't be performed.
         push_server_errors.DomikaPushServerError: in case of internal aiohttp error.
         push_server_errors.BadRequestError: if push server response with bad request.
-        push_server_errors.UnexpectedServerResponseError: if push server response with unexpected
-        status.
+        push_server_errors.UnexpectedServerResponseError: if push server response with
+            unexpected status.
     """
     result: list[DomikaPushedEvents] = []
     if not push_data:
@@ -93,8 +85,8 @@ async def push_registered_events(
     """
     Push registered events with delay = 0 to the push server.
 
-    Select registered events with delay = 0, add events with delay > 0 for the same app_session_ids,
-    create formatted push data, send it to the push server api,
+    Select registered events with delay = 0, add events with delay > 0 for the same
+    app_session_ids, create formatted push data, send it to the push server api,
     delete all registered events for involved app sessions.
 
     Args:
@@ -105,8 +97,8 @@ async def push_registered_events(
         errors.DatabaseError: in case when database operation can't be performed.
         push_server_errors.DomikaPushServerError: in case of internal aiohttp error.
         push_server_errors.BadRequestError: if push server response with bad request.
-        push_server_errors.UnexpectedServerResponseError: if push server response with unexpected
-        status.
+        push_server_errors.UnexpectedServerResponseError: if push server response with
+            unexpected status.
     """
     logger.logger.debug("Push_registered_events started.")
 
@@ -178,7 +170,12 @@ async def push_registered_events(
         }
         found_delay_zero = found_delay_zero or (push_data_record[0].delay == 0)
 
-    if found_delay_zero and events_dict and current_push_session_id and current_app_session_id:
+    if (
+        found_delay_zero
+        and events_dict
+        and current_push_session_id
+        and current_app_session_id
+    ):
         result.append(DomikaPushedEvents(current_push_session_id, events_dict))
         await _send_push_data(
             db_session,
@@ -256,10 +253,18 @@ async def _send_push_data(
                 if db_session is None:
                     # Create database session implicitly.
                     async with database_core.get_session() as db_session_:
-                        await _clear_push_session_id(db_session_, app_session_id, push_session_id)
+                        await _clear_push_session_id(
+                            db_session_,
+                            app_session_id,
+                            push_session_id,
+                        )
                     return
 
-                await _clear_push_session_id(db_session, app_session_id, push_session_id)
+                await _clear_push_session_id(
+                    db_session,
+                    app_session_id,
+                    push_session_id,
+                )
                 return
 
             if resp.status == statuses.HTTP_400_BAD_REQUEST:
