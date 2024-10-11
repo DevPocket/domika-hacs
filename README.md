@@ -30,12 +30,7 @@ Manually:
 - Open Home Assistant settings -> Devices & services.
 - Press "Add Integration", search for Domika.
 - Install Domika from the list.
-
 - Restart Home Assistant.
-Option 2 - Manual installation:
-Download the latest release.
-Unpack the release and copy the custom_components/webastoconnect directory into the custom_components directory of your Home Assistant installation.
-Restart Home Assistant.
 
 ## Configuration
 To configure Domika, open Domika integration from the list of your integrations and press "Configure". Select domains and/or entities you want to trigger critical push notifications.   
