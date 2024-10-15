@@ -52,7 +52,7 @@ async def create_or_update(
     )
 
     try:
-        result = await db_session.execute(stmt)
+        await db_session.execute(stmt)
 
         if commit:
             await db_session.commit()
