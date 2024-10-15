@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from .. import config, logger
+from .. import logger
 from ..errors import DatabaseError
 
 
@@ -46,7 +46,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-async def init_db():
+async def init_db(db_url: str):
     """
     Initialize database.
 
@@ -61,7 +61,7 @@ async def init_db():
         await close_db()
 
     try:
-        ENGINE = create_async_engine(config.CONFIG.database_url, echo=False)
+        ENGINE = create_async_engine(db_url, echo=False)
         AsyncSessionFactory = async_sessionmaker(ENGINE, expire_on_commit=False)
     except (OSError, SQLAlchemyError) as e:
         raise DatabaseError(e) from e

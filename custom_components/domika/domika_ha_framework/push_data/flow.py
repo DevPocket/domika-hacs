@@ -4,10 +4,11 @@ import json
 import uuid
 
 import aiohttp
+from aiohttp import ClientTimeout
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import config, logger, push_server_errors, statuses
+from .. import logger, push_server_errors, statuses
 from ..database import core as database_core
 from ..device import service as device_service
 from ..device.models import Device, DomikaDeviceUpdate
@@ -29,6 +30,8 @@ async def confirm_event(event_ids: list[uuid.UUID]) -> None:
 
 async def register_event(
     http_session: aiohttp.ClientSession,
+    push_server_url: str,
+    push_server_timeout: ClientTimeout,
     *,
     push_data: list[DomikaPushDataCreate],
     critical_push_needed: bool,
@@ -41,6 +44,8 @@ async def register_event(
 
     Args:
         http_session: aiohttp session.
+        push_server_url: domika push server url.
+        push_server_timeout: domika push server response timeout.
         push_data: list of push data entities.
         critical_push_needed: critical push flag.
         critical_alert_payload: payload in case we need to send a critical push.
@@ -69,6 +74,8 @@ async def register_event(
             await _send_push_data(
                 None,
                 http_session,
+                push_server_url,
+                push_server_timeout,
                 device.app_session_id,
                 device.push_session_id,
                 critical_alert_payload,
@@ -81,6 +88,8 @@ async def register_event(
 async def push_registered_events(
     db_session: AsyncSession,
     http_session: aiohttp.ClientSession,
+    push_server_url: str,
+    push_server_timeout: ClientTimeout,
 ) -> list[DomikaPushedEvents]:
     """
     Push registered events with delay = 0 to the push server.
@@ -92,6 +101,8 @@ async def push_registered_events(
     Args:
         db_session: sqlalchemy session.
         http_session: aiohttp session.
+        push_server_url: domika push server url.
+        push_server_timeout: domika push server response timeout.
 
     Raises:
         errors.DatabaseError: in case when database operation can't be performed.
@@ -150,6 +161,8 @@ async def push_registered_events(
                 await _send_push_data(
                     db_session,
                     http_session,
+                    push_server_url,
+                    push_server_timeout,
                     current_app_session_id,
                     current_push_session_id,
                     events_dict,
@@ -180,6 +193,8 @@ async def push_registered_events(
         await _send_push_data(
             db_session,
             http_session,
+            push_server_url,
+            push_server_timeout,
             current_app_session_id,
             current_push_session_id,
             events_dict,
@@ -219,6 +234,8 @@ async def _clear_push_session_id(
 async def _send_push_data(
     db_session: AsyncSession | None,
     http_session: aiohttp.ClientSession,
+    push_server_url: str,
+    push_server_timeout: ClientTimeout,
     app_session_id: uuid.UUID,
     push_session_id: uuid.UUID,
     critical_alert_payload: dict,
@@ -235,14 +252,14 @@ async def _send_push_data(
     try:
         async with (
             http_session.post(
-                f"{config.CONFIG.push_server_url}/notification/critical_push"
+                f"{push_server_url}/notification/critical_push"
                 if critical
-                else f"{config.CONFIG.push_server_url}/notification/push",
+                else f"{push_server_url}/notification/push",
                 headers={
                     "x-session-id": str(push_session_id),
                 },
                 json={"data": json.dumps(critical_alert_payload)},
-                timeout=config.CONFIG.push_server_timeout,
+                timeout=push_server_timeout,
             ) as resp,
         ):
             if resp.status == statuses.HTTP_204_NO_CONTENT:
