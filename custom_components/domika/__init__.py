@@ -23,7 +23,6 @@ from .const import (
     DB_NAME,
     DOMAIN,
     LOGGER,
-    PUSH_INTERVAL,
     PUSH_SERVER_TIMEOUT,
     PUSH_SERVER_URL,
 )
@@ -35,7 +34,7 @@ from .domika_ha_framework.database import (
     manage as database_manage,
 )
 from .entity import router as entity_router
-from .ha_event import flow as ha_event_flow, router as ha_event_router
+from .ha_event import event_pusher, flow as ha_event_flow, router as ha_event_router
 from .key_value_storage import router as key_value_router
 from .subscription import router as subscription_router
 
@@ -221,27 +220,13 @@ async def async_migrate_entry(_hass: HomeAssistant, _entry: ConfigEntry) -> bool
     return True
 
 
-async def _event_pusher(hass: HomeAssistant) -> None:
-    LOGGER.debug("Event pusher started")
-    try:
-        while True:
-            await asyncio.sleep(PUSH_INTERVAL.seconds)
-            try:
-                await ha_event_flow.push_registered_events(hass)
-            except Exception:  # noqa: BLE001
-                LOGGER.exception("Event pusher error")
-    except asyncio.CancelledError as e:
-        LOGGER.debug("Event pusher stopped. %s", e)
-        raise
-
-
 async def _on_homeassistant_started(hass: HomeAssistant) -> None:
     """Start listen events and push data after homeassistant fully started."""
     # Setup event pusher.
     entry: ConfigEntry = hass.data[DOMAIN]["entry"]
     entry.async_create_background_task(
         hass,
-        _event_pusher(hass),
+        event_pusher(hass),
         "event_pusher",
     )
 
