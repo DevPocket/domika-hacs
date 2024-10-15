@@ -9,7 +9,7 @@ from alembic.config import Config as AlembicConfig
 from sqlalchemy import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from .. import logger
+from custom_components.domika.const import LOGGER
 
 ALEMBIC_INI_PATH = Path(Path(__file__).parent) / ".." / "alembic.ini"
 
@@ -44,4 +44,4 @@ async def migrate(db_url: str):
         None,
         lambda: asyncio.run(_migrate(db_url)),
     )
-    logger.logger.debug("Database migration successful")
+    LOGGER.debug("Database migration successful")

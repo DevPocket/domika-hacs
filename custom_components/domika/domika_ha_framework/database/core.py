@@ -12,7 +12,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from .. import logger
+from custom_components.domika.const import LOGGER
+
 from ..errors import DatabaseError
 
 
@@ -66,7 +67,7 @@ async def init_db(db_url: str):
     except (OSError, SQLAlchemyError) as e:
         raise DatabaseError(e) from e
 
-    logger.logger.debug('Database "%s" initialized.', ENGINE.url)
+    LOGGER.debug('Database "%s" initialized.', ENGINE.url)
 
 
 async def close_db():
@@ -76,7 +77,7 @@ async def close_db():
         await close_all_sessions()
         await ENGINE.dispose()
 
-        logger.logger.debug('Database "%s" closed.', ENGINE.url)
+        LOGGER.debug('Database "%s" closed.', ENGINE.url)
 
         ENGINE = None
         AsyncSessionFactory = NullSessionMaker

@@ -8,7 +8,9 @@ from aiohttp import ClientTimeout
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import logger, push_server_errors, statuses
+from custom_components.domika.const import LOGGER
+
+from .. import push_server_errors, statuses
 from ..database import core as database_core
 from ..device import service as device_service
 from ..device.models import Device, DomikaDeviceUpdate
@@ -111,7 +113,7 @@ async def push_registered_events(
         push_server_errors.UnexpectedServerResponseError: if push server response with
             unexpected status.
     """
-    logger.logger.debug("Push_registered_events started.")
+    LOGGER.debug("Push_registered_events started.")
 
     result: list[DomikaPushedEvents] = []
     await decrease_delay_all(db_session)
@@ -215,7 +217,7 @@ async def _clear_push_session_id(
     # Remove push session id for device.
     device = await device_service.get(db_session, app_session_id)
     if device:
-        logger.logger.debug(
+        LOGGER.debug(
             'The server rejected push session id "%s"',
             push_session_id,
         )
@@ -224,7 +226,7 @@ async def _clear_push_session_id(
             device,
             DomikaDeviceUpdate(push_session_id=None),
         )
-        logger.logger.debug(
+        LOGGER.debug(
             'Push session "%s" for app session "%s" successfully removed',
             push_session_id,
             app_session_id,
@@ -242,7 +244,7 @@ async def _send_push_data(
     *,
     critical: bool = False,
 ) -> None:
-    logger.logger.debug(
+    LOGGER.debug(
         "Push events %sto %s. %s",
         "(critical) " if critical else "",
         push_session_id,
