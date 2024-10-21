@@ -14,7 +14,6 @@ from homeassistant.const import EVENT_STATE_CHANGED
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.start import async_at_started
 
-from . import domika_ha_framework
 from .api.domain_services_view import DomikaAPIDomainServicesView
 from .api.push_resubscribe import DomikaAPIPushResubscribe
 from .api.push_states_with_delay import DomikaAPIPushStatesWithDelay
@@ -30,7 +29,11 @@ from .const import (
 )
 from .critical_sensor import router as critical_sensor_router
 from .device import router as device_router
-from .domika_ha_framework import config
+from .domika_ha_framework import push_data
+from .domika_ha_framework.database import (
+    core as database_core,
+    manage as database_manage,
+)
 from .entity import router as entity_router
 from .ha_event import flow as ha_event_flow, router as ha_event_router
 from .key_value_storage import router as key_value_router
@@ -63,13 +66,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Init framework library.
     try:
-        await domika_ha_framework.init(
-            config.Config(
-                database_url=f"{DB_DIALECT}+{DB_DRIVER}:///{hass.config.path()}/{DB_NAME}",
-                push_server_url=PUSH_SERVER_URL,
-                push_server_timeout=ClientTimeout(total=PUSH_SERVER_TIMEOUT),
-            ),
-        )
+        database_url = f"{DB_DIALECT}+{DB_DRIVER}:///{hass.config.path()}/{DB_NAME}"
+        await database_manage.migrate(database_url)
+        await database_core.init_db(database_url)
     except Exception:  # noqa: BLE001
         LOGGER.exception("Can't setup %s entry", DOMAIN)
         return False
@@ -79,6 +78,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN] = {}
     hass.data[DOMAIN]["critical_entities"] = entry.options.get("critical_entities")
     hass.data[DOMAIN]["entry"] = entry
+    hass.data[DOMAIN]["push_server_url"] = PUSH_SERVER_URL
+    hass.data[DOMAIN]["push_server_timeout"] = ClientTimeout(total=PUSH_SERVER_TIMEOUT)
+
+    entry.async_create_background_task(
+        hass,
+        push_data.pushed_data_processor(),
+        "pushed_data_processor",
+    )
 
     # Register Domika WebSocket commands.
     websocket_api.async_register_command(
@@ -187,8 +194,8 @@ async def async_unload_entry(hass: HomeAssistant, _entry: ConfigEntry) -> bool:
 
     await asyncio.sleep(0)
 
-    # Dispose framework library.
-    await domika_ha_framework.dispose()
+    # Close db.
+    await database_core.close_db()
 
     # Clear hass data.
     hass.data.pop(DOMAIN, None)

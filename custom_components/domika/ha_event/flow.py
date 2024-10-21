@@ -4,6 +4,8 @@ from collections.abc import Iterable
 import logging
 import uuid
 
+from aiohttp import ClientTimeout
+
 from homeassistant.const import ATTR_DEVICE_CLASS
 from homeassistant.core import (
     CompressedState,
@@ -15,9 +17,12 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from ..const import (
     CRITICAL_PUSH_ALERT_STRINGS,
+    DOMAIN,
     LOGGER,
     PUSH_DELAY_DEFAULT,
     PUSH_DELAY_FOR_DOMAIN,
+    PUSH_SERVER_TIMEOUT,
+    PUSH_SERVER_URL,
 )
 from ..critical_sensor import service as critical_sensor_service
 from ..critical_sensor.enums import NotificationType
@@ -111,14 +116,31 @@ async def register_event(
                 app_session_ids,
             )
 
+        if data := hass.data.get(DOMAIN, None):
+            push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
+            push_server_timeout = data.get(
+                "push_server_timeout",
+                ClientTimeout(total=PUSH_SERVER_TIMEOUT),
+            )
+        else:
+            LOGGER.error(
+                "Can't register event entity: %s attributes %s. Domain data is missing",
+                entity_id,
+                attributes,
+            )
+            return
+
         pushed_events = await push_data_flow.register_event(
             async_get_clientsession(hass),
+            push_server_url,
+            push_server_timeout,
             push_data=events,
             critical_push_needed=critical_push_needed,
             critical_alert_payload=critical_alert_payload,
         )
         if LOGGER.isEnabledFor(logging.DEBUG):
             _log_pushed_events(pushed_events)
+
     except DomikaFrameworkBaseError:
         LOGGER.exception(
             "Can't register event entity: %s attributes %s. Framework error",
@@ -145,10 +167,22 @@ def _get_critical_alert_payload(hass: HomeAssistant, entity_id: str) -> dict:
 
 async def push_registered_events(hass: HomeAssistant) -> None:
     """Push registered events to the push server."""
+    if data := hass.data.get(DOMAIN, None):
+        push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
+        push_server_timeout = data.get(
+            "push_server_timeout",
+            ClientTimeout(total=PUSH_SERVER_TIMEOUT),
+        )
+    else:
+        LOGGER.error("Can't push registered events. Domain data is missing")
+        return
+
     async with database_core.get_session() as session:
         pushed_events = await push_data_flow.push_registered_events(
             session,
             async_get_clientsession(hass),
+            push_server_url,
+            push_server_timeout,
         )
         if LOGGER.isEnabledFor(logging.DEBUG):
             _log_pushed_events(pushed_events)

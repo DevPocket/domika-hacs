@@ -5,16 +5,16 @@ import contextlib
 import datetime
 import uuid
 
+from custom_components.domika.const import LOGGER
+
 from ..database import core as database_core
+from ..errors import DatabaseError
 from ..utils import chunks
 from . import service as push_data_service
 from .models import DomikaPushDataCreate
 
 events_queue = asyncio.Queue(maxsize=5000)
 confirmed_events_queue = asyncio.Queue(maxsize=5000)
-
-_push_data_processor: set[asyncio.Task] = set()
-_push_data_processor_finished = asyncio.Event()
 
 INTERVAL = 5
 THRESHOLD = 10
@@ -66,84 +66,53 @@ async def _process_pushed_data_once(
         for chunk in chunks(events_to_push, store_chunk_size):
             try:
                 await push_data_service.create(db_session, list(chunk))
-            except Exception as e:
-                print(e)
+            except DatabaseError as e:
+                LOGGER.error("Pushed data processor database error. %s", e)
+            except Exception:  # noqa: BLE001
+                LOGGER.exception("Pushed data processor error")
 
 
-async def _process_pushed_data(
-    events_queue_: asyncio.Queue[DomikaPushDataCreate],
-    confirmed_events_queue_: asyncio.Queue[uuid.UUID],
-    interval: float,
-    threshold: int,
-    store_chunk_size: int,
-):
-    while True:
-        task = asyncio.create_task(
-            _process_pushed_data_once(
-                events_queue_,
-                confirmed_events_queue_,
-                threshold,
-                store_chunk_size,
-            ),
-        )
-        try:
-            await asyncio.shield(task)
-        except asyncio.CancelledError:
-            await task
-            raise
-        # Wait for events.
-        await asyncio.sleep(interval)
-
-
-def _done_cb(task: asyncio.Task):
-    _push_data_processor.discard(task)
-    _push_data_processor_finished.set()
-
-
-def start_push_data_processor(
+async def pushed_data_processor(
+    events_queue_: asyncio.Queue[DomikaPushDataCreate] = events_queue,
+    confirmed_events_queue_: asyncio.Queue[uuid.UUID] = confirmed_events_queue,
     interval: float = INTERVAL,
     threshold: int = THRESHOLD,
     store_chunk_size: int = STORE_CHUNK_SIZE,
-):
+) -> None:
     """
-    Start new push data processor task.
+    Start new push data processing loop.
 
-    Do nothing if already started.
+    Read events from events_queue_, filter confirmed events, and store remaining events
+    in database.
 
     Args:
+        events_queue_: received events queue.
+        confirmed_events_queue_: queue of events that have been confirmed by the
+            application.
         interval: seconds between checks. Defaults to INTERVAL.
         threshold: minimal time in seconds to wait event confirmation. Defaults to
             THRESHOLD.
         store_chunk_size: size of chunk to store events in database. Defaults to
             STORE_CHUNK_SIZE.
     """
-    if _push_data_processor:
-        return
-
-    _push_data_processor_finished.clear()
-
-    task = asyncio.create_task(
-        _process_pushed_data(
-            events_queue,
-            confirmed_events_queue,
-            interval,
-            int(threshold * 1e6),
-            store_chunk_size,
-        ),
-    )
-    _push_data_processor.add(task)
-    task.add_done_callback(_done_cb)
-
-
-async def stop_push_data_processor():
-    """
-    Cancel push data processor task.
-
-    Do nothing if there is no running push data processor task.
-    """
-    push_data_processor = next(iter(_push_data_processor), None)
-    if not push_data_processor:
-        return
-
-    push_data_processor.cancel()
-    await _push_data_processor_finished.wait()
+    LOGGER.debug("Pushed data processor started.")
+    try:
+        while True:
+            task = asyncio.create_task(
+                _process_pushed_data_once(
+                    events_queue_,
+                    confirmed_events_queue_,
+                    int(threshold * 1e6),
+                    store_chunk_size,
+                ),
+            )
+            try:
+                await asyncio.shield(task)
+            except asyncio.CancelledError:
+                await task
+                raise
+            # Wait for events.
+            await asyncio.sleep(interval)
+    except asyncio.CancelledError as e:
+        LOGGER.debug("Pushed data processor stopped. %s", e)
+        raise

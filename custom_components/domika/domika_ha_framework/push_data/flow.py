@@ -4,10 +4,13 @@ import json
 import uuid
 
 import aiohttp
+from aiohttp import ClientTimeout
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import config, logger, push_server_errors, statuses
+from custom_components.domika.const import LOGGER
+
+from .. import push_server_errors, statuses
 from ..database import core as database_core
 from ..device import service as device_service
 from ..device.models import Device, DomikaDeviceUpdate
@@ -29,6 +32,8 @@ async def confirm_event(event_ids: list[uuid.UUID]) -> None:
 
 async def register_event(
     http_session: aiohttp.ClientSession,
+    push_server_url: str,
+    push_server_timeout: ClientTimeout,
     *,
     push_data: list[DomikaPushDataCreate],
     critical_push_needed: bool,
@@ -41,6 +46,8 @@ async def register_event(
 
     Args:
         http_session: aiohttp session.
+        push_server_url: domika push server url.
+        push_server_timeout: domika push server response timeout.
         push_data: list of push data entities.
         critical_push_needed: critical push flag.
         critical_alert_payload: payload in case we need to send a critical push.
@@ -69,6 +76,8 @@ async def register_event(
             await _send_push_data(
                 None,
                 http_session,
+                push_server_url,
+                push_server_timeout,
                 device.app_session_id,
                 device.push_session_id,
                 critical_alert_payload,
@@ -81,6 +90,8 @@ async def register_event(
 async def push_registered_events(
     db_session: AsyncSession,
     http_session: aiohttp.ClientSession,
+    push_server_url: str,
+    push_server_timeout: ClientTimeout,
 ) -> list[DomikaPushedEvents]:
     """
     Push registered events with delay = 0 to the push server.
@@ -92,6 +103,8 @@ async def push_registered_events(
     Args:
         db_session: sqlalchemy session.
         http_session: aiohttp session.
+        push_server_url: domika push server url.
+        push_server_timeout: domika push server response timeout.
 
     Raises:
         errors.DatabaseError: in case when database operation can't be performed.
@@ -100,7 +113,7 @@ async def push_registered_events(
         push_server_errors.UnexpectedServerResponseError: if push server response with
             unexpected status.
     """
-    logger.logger.debug("Push_registered_events started.")
+    LOGGER.debug("Push_registered_events started.")
 
     result: list[DomikaPushedEvents] = []
     await decrease_delay_all(db_session)
@@ -150,6 +163,8 @@ async def push_registered_events(
                 await _send_push_data(
                     db_session,
                     http_session,
+                    push_server_url,
+                    push_server_timeout,
                     current_app_session_id,
                     current_push_session_id,
                     events_dict,
@@ -180,6 +195,8 @@ async def push_registered_events(
         await _send_push_data(
             db_session,
             http_session,
+            push_server_url,
+            push_server_timeout,
             current_app_session_id,
             current_push_session_id,
             events_dict,
@@ -200,7 +217,7 @@ async def _clear_push_session_id(
     # Remove push session id for device.
     device = await device_service.get(db_session, app_session_id)
     if device:
-        logger.logger.debug(
+        LOGGER.debug(
             'The server rejected push session id "%s"',
             push_session_id,
         )
@@ -209,7 +226,7 @@ async def _clear_push_session_id(
             device,
             DomikaDeviceUpdate(push_session_id=None),
         )
-        logger.logger.debug(
+        LOGGER.debug(
             'Push session "%s" for app session "%s" successfully removed',
             push_session_id,
             app_session_id,
@@ -219,13 +236,15 @@ async def _clear_push_session_id(
 async def _send_push_data(
     db_session: AsyncSession | None,
     http_session: aiohttp.ClientSession,
+    push_server_url: str,
+    push_server_timeout: ClientTimeout,
     app_session_id: uuid.UUID,
     push_session_id: uuid.UUID,
     critical_alert_payload: dict,
     *,
     critical: bool = False,
 ) -> None:
-    logger.logger.debug(
+    LOGGER.debug(
         "Push events %sto %s. %s",
         "(critical) " if critical else "",
         push_session_id,
@@ -235,14 +254,14 @@ async def _send_push_data(
     try:
         async with (
             http_session.post(
-                f"{config.CONFIG.push_server_url}/notification/critical_push"
+                f"{push_server_url}/notification/critical_push"
                 if critical
-                else f"{config.CONFIG.push_server_url}/notification/push",
+                else f"{push_server_url}/notification/push",
                 headers={
                     "x-session-id": str(push_session_id),
                 },
                 json={"data": json.dumps(critical_alert_payload)},
-                timeout=config.CONFIG.push_server_timeout,
+                timeout=push_server_timeout,
             ) as resp,
         ):
             if resp.status == statuses.HTTP_204_NO_CONTENT:

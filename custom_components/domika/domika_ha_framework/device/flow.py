@@ -9,7 +9,9 @@ from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import config, errors, logger, push_server_errors, statuses
+from custom_components.domika.const import LOGGER
+
+from .. import config, errors, push_server_errors, statuses
 from . import service as device_service
 from .models import Device, DomikaDeviceCreate, DomikaDeviceUpdate
 
@@ -59,7 +61,7 @@ async def update_app_session_id(
                     raise errors.DatabaseError(str(e)) from e
             else:
                 # If found but user_id mismatch - remove app_session.
-                logger.logger.debug(
+                LOGGER.debug(
                     "Update_app_session_id user_id mismatch: got %s, in db: %s.",
                     user_id,
                     device.user_id,
@@ -78,7 +80,7 @@ async def update_app_session_id(
             ),
         )
         new_app_session_id = device.app_session_id
-        logger.logger.debug(
+        LOGGER.debug(
             "Update_app_session_id new app_session_id created: %s.",
             new_app_session_id,
         )
@@ -95,7 +97,7 @@ async def update_app_session_id(
             if device.app_session_id != new_app_session_id
         ]
     if result_old_app_sessions:
-        logger.logger.debug(
+        LOGGER.debug(
             "Update_app_session_id result_old_app_sessions: %s.",
             result_old_app_sessions,
         )
@@ -152,7 +154,7 @@ async def remove_push_session(
             ) as resp,
         ):
             if resp.status == statuses.HTTP_204_NO_CONTENT:
-                logger.logger.debug(
+                LOGGER.debug(
                     "Remove_push_session deleted: %s.",
                     push_session_id,
                 )
