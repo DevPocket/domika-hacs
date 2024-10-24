@@ -177,7 +177,7 @@ async def websocket_domika_get_value(
         return
 
     key_value: KeyValue | None = await _get_value(key, connection.user.id)
-    result = {"value": key_value.value, "hash": key_value.hash} if key_value else {}
+    result = {"key": key, "value": key_value.value, "hash": key_value.hash} if key_value else {}
 
     connection.send_result(msg_id, result)
     LOGGER.debug("get_value msg_id=%s data=%s", msg_id, result)
@@ -213,7 +213,7 @@ async def websocket_domika_get_value_hash(
         return
 
     key_value: KeyValue | None = await _get_value(key, connection.user.id)
-    result = {"hash": key_value.hash} if key_value else {}
+    result = {"key": key, "hash": key_value.hash} if key_value else {}
 
     connection.send_result(msg_id, result)
     LOGGER.debug("get_value_hash msg_id=%s data=%s", msg_id, result)
