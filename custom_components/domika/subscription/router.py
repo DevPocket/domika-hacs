@@ -15,9 +15,9 @@ from homeassistant.core import HomeAssistant
 from ..const import LOGGER
 from ..domika_ha_framework.database import core as database_core
 from ..domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..domika_ha_framework.push_data import service as push_data_service
 from ..domika_ha_framework.subscription import flow as subscription_flow
 from ..domika_ha_framework.utils import flatten_json
-from ..domika_ha_framework.push_data import service as push_data_service
 
 
 @websocket_command(
@@ -70,8 +70,8 @@ async def websocket_domika_resubscribe(
             await subscription_flow.resubscribe(session, app_session_id, subscriptions)
             await push_data_service.delete_for_app_session(
                 session,
-                app_session_id=app_session_id
-    )
+                app_session_id=app_session_id,
+            )
 
     except DomikaFrameworkBaseError as e:
         LOGGER.error('Can\'t resubscribe "%s". Framework error. %s', subscriptions, e)
