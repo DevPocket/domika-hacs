@@ -27,6 +27,10 @@ class NullSessionMaker:
         errors.DatabaseError: when try to access.
     """
 
+    def __call__(self) -> "NullSessionMaker":
+        """Just return self."""
+        return self
+
     async def __aenter__(self):
         msg = "Database not initialized."
         raise DatabaseError(msg)
@@ -37,7 +41,9 @@ class NullSessionMaker:
 
 ENGINE: AsyncEngine | None = None
 
-AsyncSessionFactory = NullSessionMaker
+AsyncSessionFactory: NullSessionMaker | async_sessionmaker[AsyncSession] = (
+    NullSessionMaker()
+)
 
 
 @asynccontextmanager
@@ -80,4 +86,4 @@ async def close_db():
         LOGGER.debug('Database "%s" closed.', ENGINE.url)
 
         ENGINE = None
-        AsyncSessionFactory = NullSessionMaker
+        AsyncSessionFactory = NullSessionMaker()
