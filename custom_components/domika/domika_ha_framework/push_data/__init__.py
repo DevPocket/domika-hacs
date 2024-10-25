@@ -61,6 +61,10 @@ async def _process_pushed_data_once(
         # to previously read count.
         events_queue_.put_nowait(event)
 
+    # Nothing to push - return.
+    if not events_to_push:
+        return
+
     # Store events.
     try:
         async with database_core.get_session() as db_session:
