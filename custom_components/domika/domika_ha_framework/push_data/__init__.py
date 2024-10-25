@@ -95,7 +95,7 @@ async def pushed_data_processor(
         store_chunk_size: size of chunk to store events in database. Defaults to
             STORE_CHUNK_SIZE.
     """
-    LOGGER.debug("Pushed data processor started.")
+    LOGGER.debug("Pushed data processor started")
     try:
         while True:
             task = asyncio.create_task(
