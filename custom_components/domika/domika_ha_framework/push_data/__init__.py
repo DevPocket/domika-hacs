@@ -62,14 +62,23 @@ async def _process_pushed_data_once(
         events_queue_.put_nowait(event)
 
     # Store events.
-    async with database_core.get_session() as db_session:
-        for chunk in chunks(events_to_push, store_chunk_size):
-            try:
+    try:
+        async with database_core.get_session() as db_session:
+            for chunk in chunks(events_to_push, store_chunk_size):
                 await push_data_service.create(db_session, list(chunk))
-            except DatabaseError as e:
-                LOGGER.error("Pushed data processor database error. %s", e)
-            except Exception:  # noqa: BLE001
-                LOGGER.exception("Pushed data processor error")
+    except DatabaseError as e:
+        LOGGER.error("Pushed data processor database error. %s", e)
+
+        with contextlib.suppress(asyncio.QueueFull):
+            # Requeue events.
+            for event in events_to_push:
+                events_queue_.put_nowait(event)
+    except Exception:  # noqa: BLE001
+        LOGGER.exception("Pushed data processor error")
+        with contextlib.suppress(asyncio.QueueFull):
+            # Requeue events.
+            for event in events_to_push:
+                events_queue_.put_nowait(event)
 
 
 async def pushed_data_processor(

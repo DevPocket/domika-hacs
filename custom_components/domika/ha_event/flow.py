@@ -27,7 +27,7 @@ from ..const import (
 from ..critical_sensor import service as critical_sensor_service
 from ..critical_sensor.enums import NotificationType
 from ..domika_ha_framework.database import core as database_core
-from ..domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..domika_ha_framework.errors import DatabaseError, DomikaFrameworkBaseError
 from ..domika_ha_framework.push_data import flow as push_data_flow
 from ..domika_ha_framework.push_data.models import (
     DomikaPushDataCreate,
@@ -141,6 +141,14 @@ async def register_event(
         if LOGGER.isEnabledFor(logging.DEBUG):
             _log_pushed_events(pushed_events)
 
+    except DatabaseError as e:
+        LOGGER.error(
+            "Can't register event entity: %s attributes %s. Database error. %s",
+            entity_id,
+            attributes,
+            e,
+        )
+
     except DomikaFrameworkBaseError:
         LOGGER.exception(
             "Can't register event entity: %s attributes %s. Framework error",
@@ -177,15 +185,21 @@ async def push_registered_events(hass: HomeAssistant) -> None:
         LOGGER.error("Can't push registered events. Domain data is missing")
         return
 
-    async with database_core.get_session() as session:
-        pushed_events = await push_data_flow.push_registered_events(
-            session,
-            async_get_clientsession(hass),
-            push_server_url,
-            push_server_timeout,
-        )
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            _log_pushed_events(pushed_events)
+    try:
+        async with database_core.get_session() as session:
+            pushed_events = await push_data_flow.push_registered_events(
+                session,
+                async_get_clientsession(hass),
+                push_server_url,
+                push_server_timeout,
+            )
+            if LOGGER.isEnabledFor(logging.DEBUG):
+                _log_pushed_events(pushed_events)
+    except DatabaseError as e:
+        LOGGER.error("Can't push registered events. Database error. %s", e)
+
+    except DomikaFrameworkBaseError:
+        LOGGER.exception("Can't push registered events. Framework error")
 
 
 def _log_pushed_events(
