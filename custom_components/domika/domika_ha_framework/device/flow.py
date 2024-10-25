@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from custom_components.domika.const import LOGGER
 
-from .. import config, errors, push_server_errors, statuses
+from .. import errors, push_server_errors, statuses
 from . import service as device_service
 from .models import Device, DomikaDeviceCreate, DomikaDeviceUpdate
 
@@ -109,6 +109,8 @@ async def remove_push_session(
     db_session: AsyncSession,
     http_session: aiohttp.ClientSession,
     app_session_id: uuid.UUID,
+    push_server_url: str,
+    push_server_timeout: aiohttp.ClientTimeout,
 ) -> uuid.UUID:
     """
     Remove push session from push server.
@@ -117,6 +119,8 @@ async def remove_push_session(
         db_session: sqlalchemy session.
         http_session: aiohttp session.
         app_session_id: application session id.
+        push_server_url: domika push server url.
+        push_server_timeout: domika push server response timeout.
 
     Raises:
         errors.DatabaseError: in case when database operation can't be performed.
@@ -145,12 +149,12 @@ async def remove_push_session(
         )
         async with (
             http_session.delete(
-                f"{config.CONFIG.push_server_url}/push_session",
+                f"{push_server_url}/push_session",
                 headers={
                     # TODO: rename to x-push-session-id
                     "x-session-id": str(push_session_id),
                 },
-                timeout=config.CONFIG.push_server_timeout,
+                timeout=push_server_timeout,
             ) as resp,
         ):
             if resp.status == statuses.HTTP_204_NO_CONTENT:
@@ -178,6 +182,8 @@ async def create_push_session(
     environment: str,
     push_token: str,
     app_session_id: str,
+    push_server_url: str,
+    push_server_timeout: aiohttp.ClientTimeout,
 ):
     """
     Initialize push session creation flow on the push server.
@@ -189,6 +195,8 @@ async def create_push_session(
         environment: application environment.
         push_token: application push token.
         app_session_id: application push session id.
+        push_server_url: domika push server url.
+        push_server_timeout: domika push server response timeout.
 
     Raises:
         ValueError: if original_transaction_id, push_token, platform or environment is
@@ -211,7 +219,7 @@ async def create_push_session(
     try:
         async with (
             http_session.post(
-                f"{config.CONFIG.push_server_url}/push_session/create",
+                f"{push_server_url}/push_session/create",
                 json={
                     "original_transaction_id": original_transaction_id,
                     "platform": platform,
@@ -219,7 +227,7 @@ async def create_push_session(
                     "push_token": push_token,
                     "app_session_id": app_session_id,
                 },
-                timeout=config.CONFIG.push_server_timeout,
+                timeout=push_server_timeout,
             ) as resp,
         ):
             if resp.status == statuses.HTTP_202_ACCEPTED:
@@ -239,6 +247,8 @@ async def verify_push_session(
     app_session_id: uuid.UUID,
     verification_key: str,
     push_token_hash: str,
+    push_server_url: str,
+    push_server_timeout: aiohttp.ClientTimeout,
 ) -> uuid.UUID:
     """
     Finishes push session generation.
@@ -251,7 +261,9 @@ async def verify_push_session(
         http_session: aiohttp session.
         app_session_id: application session id.
         verification_key: verification key.
-        push_token_hash: hash of the triplet (push_token, platform, environment)
+        push_token_hash: hash of the triplet (push_token, platform, environment).
+        push_server_url: domika push server url.
+        push_server_timeout: domika push server response timeout.
 
     Raises:
         ValueError: if verification_key is empty.
@@ -273,11 +285,11 @@ async def verify_push_session(
     try:
         async with (
             http_session.post(
-                f"{config.CONFIG.push_server_url}/push_session/verify",
+                f"{push_server_url}/push_session/verify",
                 json={
                     "verification_key": verification_key,
                 },
-                timeout=config.CONFIG.push_server_timeout,
+                timeout=push_server_timeout,
             ) as resp,
         ):
             if resp.status == statuses.HTTP_201_CREATED:

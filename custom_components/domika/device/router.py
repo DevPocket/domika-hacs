@@ -4,6 +4,7 @@ import contextlib
 from typing import TYPE_CHECKING, Any, cast
 import uuid
 
+from aiohttp import ClientTimeout
 import voluptuous as vol
 
 from homeassistant.components import network
@@ -22,7 +23,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from ..const import DOMAIN, LOGGER
+from ..const import DOMAIN, LOGGER, PUSH_SERVER_TIMEOUT, PUSH_SERVER_URL
 from ..domika_ha_framework import errors, push_server_errors
 from ..domika_ha_framework.database import core as database_core
 from ..domika_ha_framework.device import flow as device_flow, service as device_service
@@ -272,12 +273,24 @@ async def websocket_domika_update_push_token(
 
 
 async def _remove_push_session(hass: HomeAssistant, app_session_id: uuid.UUID) -> None:
+    if data := hass.data.get(DOMAIN, None):
+        push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
+        push_server_timeout = data.get(
+            "push_server_timeout",
+            ClientTimeout(total=PUSH_SERVER_TIMEOUT),
+        )
+    else:
+        LOGGER.error("Can't remove push session. Domain data is missing")
+        return
+
     try:
         async with database_core.get_session() as session:
             push_session_id = await device_flow.remove_push_session(
                 session,
                 async_get_clientsession(hass),
                 app_session_id,
+                push_server_url,
+                push_server_timeout,
             )
             LOGGER.info('Push session "%s" successfully removed', push_session_id)
     except errors.AppSessionIdNotFoundError as e:
@@ -349,6 +362,16 @@ async def _create_push_session(
     push_token: str,
     app_session_id: str,
 ) -> None:
+    if data := hass.data.get(DOMAIN, None):
+        push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
+        push_server_timeout = data.get(
+            "push_server_timeout",
+            ClientTimeout(total=PUSH_SERVER_TIMEOUT),
+        )
+    else:
+        LOGGER.error("Can't create push session. Domain data is missing")
+        return
+
     try:
         await device_flow.create_push_session(
             async_get_clientsession(hass),
@@ -357,6 +380,8 @@ async def _create_push_session(
             environment,
             push_token,
             app_session_id,
+            push_server_url,
+            push_server_timeout,
         )
         LOGGER.info(
             "Push session creation process successfully initialized. "
@@ -457,6 +482,16 @@ async def websocket_domika_update_push_session(
 
 
 async def _remove_app_session(hass: HomeAssistant, app_session_id: uuid.UUID) -> None:
+    if data := hass.data.get(DOMAIN, None):
+        push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
+        push_server_timeout = data.get(
+            "push_server_timeout",
+            ClientTimeout(total=PUSH_SERVER_TIMEOUT),
+        )
+    else:
+        LOGGER.error("Can't remove app session. Domain data is missing")
+        return
+
     try:
         async with database_core.get_session() as session:
             try:
@@ -464,6 +499,8 @@ async def _remove_app_session(hass: HomeAssistant, app_session_id: uuid.UUID) ->
                     session,
                     async_get_clientsession(hass),
                     app_session_id,
+                    push_server_url,
+                    push_server_timeout,
                 )
                 LOGGER.info(
                     'Push session "%s" for app session "%s" successfully removed',
@@ -544,6 +581,16 @@ async def _verify_push_session(
     verification_key: str,
     push_token_hash: str,
 ) -> None:
+    if data := hass.data.get(DOMAIN, None):
+        push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
+        push_server_timeout = data.get(
+            "push_server_timeout",
+            ClientTimeout(total=PUSH_SERVER_TIMEOUT),
+        )
+    else:
+        LOGGER.error("Can't verify push session. Domain data is missing")
+        return
+
     try:
         async with database_core.get_session() as session:
             push_session_id = await device_flow.verify_push_session(
@@ -552,6 +599,8 @@ async def _verify_push_session(
                 app_session_id,
                 verification_key,
                 push_token_hash,
+                push_server_url,
+                push_server_timeout,
             )
         LOGGER.info(
             'Verification key "%s" for application "%s" successfully verified. '
