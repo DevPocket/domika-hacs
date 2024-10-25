@@ -1,11 +1,12 @@
 """Application device service functions."""
 
 from collections.abc import Sequence
+import datetime
 from typing import overload
 import uuid
 
 import sqlalchemy
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -264,6 +265,40 @@ async def delete(
         errors.DatabaseError: in case when database operation can't be performed.
     """
     stmt = sqlalchemy.delete(Device).where(Device.app_session_id == app_session_id)
+
+    # Cleanup cache.
+    get_all_with_push_session_id.cache_clear()
+
+    try:
+        await db_session.execute(stmt)
+
+        if commit:
+            await db_session.commit()
+    except SQLAlchemyError as e:
+        raise DatabaseError(str(e)) from e
+
+
+async def delete_inactive(
+    db_session: AsyncSession,
+    inactivity_threshold: datetime.timedelta,
+    *,
+    commit: bool = True,
+):
+    """
+    Delete inactive device.
+
+    Args:
+        db_session: sqlalchemy database session.
+        inactivity_threshold: time after which the device is considered inactive.
+        commit: commit after deletion.
+
+    Raises:
+        errors.DatabaseError: in case when database operation can't be performed.
+    """
+    stmt = sqlalchemy.delete(Device).where(
+        Device.last_update
+        < func.datetime("now", f"-{inactivity_threshold.total_seconds()} seconds"),
+    )
 
     # Cleanup cache.
     get_all_with_push_session_id.cache_clear()

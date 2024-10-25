@@ -28,7 +28,7 @@ from .const import (
 )
 from .critical_sensor import router as critical_sensor_router
 from .device import router as device_router
-from .domika_ha_framework import push_data
+from .domika_ha_framework import device, push_data
 from .domika_ha_framework.database import (
     core as database_core,
     manage as database_manage,
@@ -80,10 +80,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN]["push_server_url"] = PUSH_SERVER_URL
     hass.data[DOMAIN]["push_server_timeout"] = ClientTimeout(total=PUSH_SERVER_TIMEOUT)
 
+    # Start pushed data processor background task.
     entry.async_create_background_task(
         hass,
         push_data.pushed_data_processor(),
         "pushed_data_processor",
+    )
+
+    # Start inactive device cleaner background task.
+    entry.async_create_background_task(
+        hass,
+        device.inactive_device_cleaner(),
+        "inactive_device_cleaner",
     )
 
     # Register Domika WebSocket commands.
