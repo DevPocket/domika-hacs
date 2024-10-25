@@ -31,9 +31,9 @@ async def inactive_device_cleaner() -> None:
                         DEVICE_INACTIVITY_TIME_THRESHOLD,
                     )
             except DatabaseError as e:
-                LOGGER.error("Device cleaner database error. %s", e)
+                LOGGER.error("Inactive device cleaner database error. %s", e)
             except Exception:  # noqa: BLE001
-                LOGGER.exception("Device cleaner error")
+                LOGGER.exception("Inactive device cleaner error")
             await asyncio.sleep(DEVICE_INACTIVITY_CHECK_INTERVAL.total_seconds())
     except asyncio.CancelledError as e:
         LOGGER.debug("Inactive device cleaner stopped. %s", e)
