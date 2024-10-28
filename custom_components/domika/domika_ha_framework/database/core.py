@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+import inspect
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import (
@@ -50,7 +51,20 @@ AsyncSessionFactory: NullSessionMaker | async_sessionmaker[AsyncSession] = (
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """Return async database session."""
     async with AsyncSessionFactory() as session:
+        frame_info = inspect.stack()[2]
+        LOGGER.debug(
+            "Create db session: file: %s function: %s line: %d",
+            frame_info.filename,
+            frame_info.function,
+            frame_info.lineno,
+        )
         yield session
+        LOGGER.debug(
+            "Destroy db session: file: %s function: %s line: %d",
+            frame_info.filename,
+            frame_info.function,
+            frame_info.lineno,
+        )
 
 
 async def init_db(db_url: str):
