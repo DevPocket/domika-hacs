@@ -4,6 +4,9 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 import inspect
 
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+from sqlalchemy.engine.interfaces import DBAPIConnection
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -12,8 +15,9 @@ from sqlalchemy.ext.asyncio import (
     close_all_sessions,
     create_async_engine,
 )
+from sqlalchemy.pool import ConnectionPoolEntry
 
-from custom_components.domika.const import LOGGER
+from custom_components.domika.const import DATABASE_BUSY_TIMEOUT, LOGGER
 
 from ..errors import DatabaseError
 
@@ -45,6 +49,27 @@ ENGINE: AsyncEngine | None = None
 AsyncSessionFactory: NullSessionMaker | async_sessionmaker[AsyncSession] = (
     NullSessionMaker()
 )
+
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(
+    dbapi_connection: DBAPIConnection,
+    connection_record: ConnectionPoolEntry,
+):
+    """
+    Called when a new connection made for a pool.
+
+    Args:
+        dbapi_connection: a DBAPI connection. The ConnectionPoolEntry.dbapi_connection
+            attribute.
+        connection_record: the ConnectionPoolEntry managing the DBAPI connection.
+    """
+    del connection_record  # Unused
+    cursor = dbapi_connection.cursor()
+    cursor.execute(
+        f"PRAGMA busy_timeout = {DATABASE_BUSY_TIMEOUT.total_seconds() * 1000};",  # ms
+    )
+    cursor.close()
 
 
 @asynccontextmanager
