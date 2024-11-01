@@ -67,9 +67,19 @@ async def _process_pushed_data_once(
 
     # Store events.
     try:
-        async with database_core.get_session() as db_session:
-            for chunk in chunks(events_to_push, store_chunk_size):
-                await push_data_service.create(db_session, list(chunk))
+        chunk_count = 0
+        event_count = 0
+        for chunk in chunks(events_to_push, store_chunk_size):
+            chunk_count += 1
+            async with database_core.get_session() as db_session:
+                events = list(chunk)
+                event_count += len(events)
+                await push_data_service.create(db_session, events)
+        LOGGER.debug(
+            "Pushed data added %d events in %d chunks",
+            event_count,
+            chunk_count,
+        )
     except DatabaseError as e:
         LOGGER.error("Pushed data processor database error. %s", e)
 
