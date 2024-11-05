@@ -77,19 +77,19 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """Return async database session."""
     async with AsyncSessionFactory() as session:
         frame_info = inspect.stack()[2]
-        LOGGER.debug(
-            "Create db session: file: %s function: %s line: %d",
-            frame_info.filename,
-            frame_info.function,
-            frame_info.lineno,
-        )
+        # LOGGER.debug(
+        #     "Create db session: file: %s function: %s line: %d",
+        #     frame_info.filename,
+        #     frame_info.function,
+        #     frame_info.lineno,
+        # )
         yield session
-        LOGGER.debug(
-            "Destroy db session: file: %s function: %s line: %d",
-            frame_info.filename,
-            frame_info.function,
-            frame_info.lineno,
-        )
+        # LOGGER.debug(
+        #     "Destroy db session: file: %s function: %s line: %d",
+        #     frame_info.filename,
+        #     frame_info.function,
+        #     frame_info.lineno,
+        # )
 
 
 async def init_db(db_url: str):

@@ -253,6 +253,9 @@ def _fire_critical_sensor_notification(
     # Fetch state for all levels of critical binary sensors.
     sensors_data = critical_sensor_service.get(hass, NotificationType.ANY)
     # Fire the event for app.
+    LOGGER.debug(
+        "Fire domika_critical_sensors_changed"
+    )
     hass.bus.async_fire(
         "domika_critical_sensors_changed",
         sensors_data.to_dict(),
