@@ -10,6 +10,7 @@ from homeassistant.components.light import (
     LightEntityFeature,
     get_supported_color_modes,
 )
+from homeassistant.components.media_player import MediaPlayerEntityFeature
 from homeassistant.components.search import ItemType, Searcher
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import ATTR_DEVICE_CLASS, ATTR_FRIENDLY_NAME, Platform
@@ -77,6 +78,18 @@ def _capabilities_climate(hass: HomeAssistant, entity_id: str) -> set[str]:
         capabilities.add("humidity")
     if supported_features & ClimateEntityFeature.FAN_MODE:
         capabilities.add("fan")
+    return capabilities
+
+
+def _capabilities_player(hass: HomeAssistant, entity_id: str) -> set[str]:
+    capabilities = set()
+    supported_features = hass_entity.get_supported_features(hass, entity_id)
+    if supported_features & MediaPlayerEntityFeature.PLAY:
+        capabilities.add("temperature")
+    if supported_features & MediaPlayerEntityFeature.PAUSE:
+        capabilities.add("temperatureRange")
+    if supported_features & MediaPlayerEntityFeature.VOLUME_SET:
+        capabilities.add("humidity")
     return capabilities
 
 
@@ -210,6 +223,8 @@ def get_single(hass: HomeAssistant, entity_id: str) -> DomikaEntityInfo | None:
         capabilities = _capabilities_sensor(hass, state)
     elif state.domain == Platform.BINARY_SENSOR:
         capabilities = _capabilities_binary_sensor(hass, state)
+    elif state.domain == Platform.MEDIA_PLAYER:
+        capabilities = _capabilities_player(hass, state)
     if capabilities:
         result.info["capabilities"] = capabilities
 
