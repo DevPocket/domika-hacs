@@ -85,11 +85,13 @@ def _capabilities_player(hass: HomeAssistant, entity_id: str) -> set[str]:
     capabilities = set()
     supported_features = hass_entity.get_supported_features(hass, entity_id)
     if supported_features & MediaPlayerEntityFeature.PLAY:
-        capabilities.add("temperature")
+        capabilities.add("play")
     if supported_features & MediaPlayerEntityFeature.PAUSE:
-        capabilities.add("temperatureRange")
+        capabilities.add("pause")
     if supported_features & MediaPlayerEntityFeature.VOLUME_SET:
-        capabilities.add("humidity")
+        capabilities.add("setVolume")
+    if supported_features & MediaPlayerEntityFeature.SELECT_SOURCE:
+        capabilities.add("selectSource")
     return capabilities
 
 
@@ -224,7 +226,7 @@ def get_single(hass: HomeAssistant, entity_id: str) -> DomikaEntityInfo | None:
     elif state.domain == Platform.BINARY_SENSOR:
         capabilities = _capabilities_binary_sensor(hass, state)
     elif state.domain == Platform.MEDIA_PLAYER:
-        capabilities = _capabilities_player(hass, state)
+        capabilities = _capabilities_player(hass, entity_id)
     if capabilities:
         result.info["capabilities"] = capabilities
 
