@@ -1,7 +1,7 @@
-"""Application dashboard router."""
+"""Application key_value storage router."""
 
 import contextlib
-from typing import Any
+from typing import Any, Tuple
 import uuid
 
 import voluptuous as vol
@@ -17,12 +17,7 @@ from ..const import LOGGER
 from ..domika_ha_framework.database import core as database_core
 from ..domika_ha_framework.device import service as device_service
 from ..domika_ha_framework.errors import DomikaFrameworkBaseError
-from ..domika_ha_framework.key_value_storage import service as key_value_service
-from ..domika_ha_framework.key_value_storage.models import (
-    DomikaKeyValueCreate,
-    DomikaKeyValueRead,
-    KeyValue,
-)
+from ..storage.storage import STORAGE
 
 
 async def _store_value(
@@ -34,16 +29,8 @@ async def _store_value(
     app_session_id: uuid.UUID | None,
 ) -> None:
     try:
+        await STORAGE.update_users_data(user_id=user_id, key=key, value=value, value_hash=value_hash)
         async with database_core.get_session() as session:
-            await key_value_service.create_or_update(
-                session,
-                DomikaKeyValueCreate(
-                    user_id=user_id,
-                    key=key,
-                    value=value,
-                    hash=value_hash,
-                ),
-            )
             devices = await device_service.get_by_user_id(session, user_id)
 
         for device in devices:
@@ -119,32 +106,11 @@ async def websocket_domika_store_value(
     await _store_value(hass, key, value, value_hash, connection.user.id, app_session_id)
 
 
-async def _get_value(
+def _get_value(
     key: str,
     user_id: str,
-) -> KeyValue | None:
-    try:
-        async with database_core.get_session() as session:
-            return await key_value_service.get(
-                session,
-                DomikaKeyValueRead(
-                    user_id=user_id,
-                    key=key,
-                ),
-            )
-    except DomikaFrameworkBaseError as e:
-        LOGGER.error(
-            'Can\'t get value for key: %s, user "%s". Framework error. %s',
-            key,
-            user_id,
-            e,
-        )
-    except Exception:  # noqa: BLE001
-        LOGGER.exception(
-            "Can't get value for key: %s, user \"%s. Unhandled error",
-            key,
-            user_id,
-        )
+) -> Tuple[str, str] | None:
+    return STORAGE.get_users_data(user_id=user_id, key=key)
 
 
 @websocket_command(
@@ -176,15 +142,15 @@ async def websocket_domika_get_value(
         LOGGER.error('Got websocket message "get_value", key is missing')
         return
 
-    key_value: KeyValue | None = await _get_value(key, connection.user.id)
+    value_valuehash: Tuple[str, str] | None = _get_value(key, connection.user.id)
     result = (
-        {"key": key, "value": key_value.value, "hash": key_value.hash}
-        if key_value
+        {"key": key, "value": value_valuehash[0], "hash": value_valuehash[1]}
+        if value_valuehash
         else {}
     )
 
     connection.send_result(msg_id, result)
-    LOGGER.debug("get_value msg_id=%s key=%s hash=%s", msg_id, key, key_value.hash)
+    LOGGER.debug("get_value msg_id=%s key=%s hash=%s", msg_id, key, value_valuehash[1] if value_valuehash else "None")
     # LOGGER.debug("get_value msg_id=%s data=%s", msg_id, result)
 
 
@@ -217,8 +183,8 @@ async def websocket_domika_get_value_hash(
         LOGGER.error('Got websocket message "get_value_hash", key is missing')
         return
 
-    key_value: KeyValue | None = await _get_value(key, connection.user.id)
-    result = {"key": key, "hash": key_value.hash} if key_value else {}
+    value_valuehash: Tuple[str, str] | None = _get_value(key, connection.user.id)
+    result = {"key": key, "hash": value_valuehash[1]} if value_valuehash else {}
 
     connection.send_result(msg_id, result)
     LOGGER.debug("get_value_hash msg_id=%s data=%s", msg_id, result)

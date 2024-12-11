@@ -17,10 +17,9 @@ from ..const import (
 )
 from ..domika_ha_framework.database import core as database_core
 from ..domika_ha_framework.errors import DomikaFrameworkBaseError
-from ..domika_ha_framework.key_value_storage import service as key_value_service
-from ..domika_ha_framework.key_value_storage.models import DomikaKeyValueRead, KeyValue
 from .enums import NotificationType
 from .models import DomikaNotificationSensor, DomikaNotificationSensorsRead
+from ..storage.storage import STORAGE
 
 if TYPE_CHECKING:
     from homeassistant.helpers.entity_registry import RegistryEntry
@@ -108,15 +107,11 @@ async def get_with_smiley(
         sensors_data = get(hass, notification_types)
         result = sensors_data.to_dict()
 
-        async with database_core.get_session() as session:
-            key_value: KeyValue | None = await key_value_service.get(
-                session,
-                DomikaKeyValueRead(user_id, smiley_key),
-            )
+        key_value = STORAGE.get_users_data(user_id=user_id, key=smiley_key)
 
         if key_value:
-            result[smiley_key] = key_value.value
-            result[smiley_hash_key] = key_value.hash
+            result[smiley_key] = key_value[0]
+            result[smiley_hash_key] = key_value[1]
 
         return result
     except DomikaFrameworkBaseError as e:
