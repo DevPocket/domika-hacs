@@ -184,7 +184,8 @@ async def websocket_domika_get_value(
     )
 
     connection.send_result(msg_id, result)
-    LOGGER.debug("get_value msg_id=%s data=%s", msg_id, result)
+    LOGGER.debug("get_value msg_id=%s key=%s hash=%s", msg_id, key, key_value.hash)
+    # LOGGER.debug("get_value msg_id=%s data=%s", msg_id, result)
 
 
 @websocket_command(

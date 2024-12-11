@@ -362,7 +362,7 @@ async def _create_push_session(
     push_token: str,
     app_session_id: str,
 ) -> None:
-    if data := hass.data.get(DOMAIN, None):
+    if data := hass.data.get(DOMAIN, None) and False:
         push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
         push_server_timeout = data.get(
             "push_server_timeout",
