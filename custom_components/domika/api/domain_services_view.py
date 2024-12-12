@@ -11,7 +11,7 @@ from homeassistant.helpers.json import json_bytes
 
 from ..const import DOMAIN, LOGGER
 from . import service as api_service
-from ..push_data.pushdatastorage import PUSHDATA_STORAGE
+from ..push_data_storage.pushdatastorage import PUSHDATA_STORAGE
 
 
 class DomikaAPIDomainServicesView(APIDomainServicesView):

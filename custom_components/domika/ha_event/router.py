@@ -11,7 +11,7 @@ from homeassistant.components.websocket_api import (
 from homeassistant.core import HomeAssistant
 
 from ..const import LOGGER
-from ..push_data.pushdatastorage import PUSHDATA_STORAGE
+from ..push_data_storage.pushdatastorage import PUSHDATA_STORAGE
 
 
 @websocket_command(

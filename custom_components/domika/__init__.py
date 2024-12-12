@@ -7,8 +7,6 @@ from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from aiohttp import ClientTimeout
-
 from homeassistant.components import websocket_api
 from homeassistant.const import EVENT_STATE_CHANGED
 from homeassistant.helpers import config_validation as cv
@@ -31,7 +29,7 @@ from .ha_event import event_pusher, flow as ha_event_flow, router as ha_event_ro
 from .key_value import router as key_value_router
 from .storage.storage import STORAGE
 from .subscription import router as subscription_router
-from . import push_data
+from . import push_data_storage
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -70,7 +68,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Start pushed data processor background task.
     entry.async_create_background_task(
         hass,
-        push_data.pushed_data_processor(),
+        push_data_storage.pushed_data_processor(),
         "pushed_data_processor",
     )
 

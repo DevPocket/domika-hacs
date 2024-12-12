@@ -24,7 +24,7 @@ from ..const import (
 )
 from ..critical_sensor import service as critical_sensor_service
 from ..critical_sensor.enums import NotificationType
-from ..push_data.pushdatastorage import PUSHDATA_STORAGE
+from ..push_data_storage.pushdatastorage import PUSHDATA_STORAGE
 from ..utils import flatten_json
 from ..storage.storage import STORAGE
 
@@ -91,7 +91,7 @@ async def register_event(
             app_session_ids,
         )
 
-    # Process event to push_data
+    # Process event to push_data_storage
     delay = await _get_delay_by_entity_id(hass, entity_id)
     PUSHDATA_STORAGE.process_entity_changes(
         app_sessions_data=STORAGE.get_all_app_sessions_data(),
@@ -300,6 +300,30 @@ async def _send_push_data(
             raise push_server_errors.UnexpectedServerResponseError(resp.status)
     except aiohttp.ClientError as e:
         raise push_server_errors.DomikaPushServerError(str(e)) from None
+
+
+async def _clear_push_session_id(
+    app_session_id: str,
+    push_session_id: str,
+) -> None:
+    # Push session id not found on push server.
+    # Remove push session id for sessions.
+    device = STORAGE.get_app_session(app_session_id)
+    if device:
+        LOGGER.debug(
+            'The server rejected push session id "%s"',
+            push_session_id,
+        )
+        await device_service.update(
+            db_session,
+            device,
+            DomikaDeviceUpdate(push_session_id=None),
+        )
+        LOGGER.debug(
+            'Push session "%s" for app session "%s" successfully removed',
+            push_session_id,
+            app_session_id,
+        )
 
 def _get_changed_attributes_from_event_data(event_data: EventStateChangedData) -> dict:
     old_state: CompressedState | dict = {}

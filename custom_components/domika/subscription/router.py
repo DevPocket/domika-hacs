@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant
 
 from ..const import LOGGER
 from ..storage.storage import STORAGE
-from ..push_data.pushdatastorage import PUSHDATA_STORAGE
+from ..push_data_storage.pushdatastorage import PUSHDATA_STORAGE
 from ..utils import flatten_json
 
 
