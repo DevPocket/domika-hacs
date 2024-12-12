@@ -24,6 +24,7 @@ class AppSession:
 
 @dataclass
 class Subscription:
+    app_session_id: str
     entity_id: str
     attribute: str
     need_push: bool

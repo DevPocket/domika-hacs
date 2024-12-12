@@ -306,6 +306,22 @@ class Storage:
                 and (need_push is None or bool(sub.get('need_push')) == need_push)
         ]
 
+    def get_app_sessions_for_event(self, entity_id: str, attributes: list[str]) -> list[str]:
+        """
+        Get the list of app_session_ids subscribed to any of the given attributes
+        for the specified entity_id.
+        """
+        subscribed_app_sessions = []
+
+        for app_session_id, session_data in self._app_sessions_data.items():
+            subscriptions = session_data.get("subscriptions", [])
+            for subscription in subscriptions:
+                # Check if the subscription matches the entity_id and any attribute
+                if subscription.get("entity_id") == entity_id and subscription.get("attribute") in attributes:
+                    subscribed_app_sessions.append(app_session_id)
+                    break  # Break out as we only need to add the app_session_id once
+        return subscribed_app_sessions
+
     async def delete_inactive(self, threshold):
         for app_session, data in self._app_sessions_data.items():
             last_update_int = data.get('last_update')

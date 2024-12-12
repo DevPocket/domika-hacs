@@ -28,12 +28,9 @@ from ..critical_sensor import service as critical_sensor_service
 from ..critical_sensor.enums import NotificationType
 from ..errors import DomikaFrameworkBaseError
 from ..push_data import flow as push_data_flow
-from ..push_data.models import (
-    DomikaPushDataCreate,
-    DomikaPushedEvents,
-)
 from ..subscription import flow as subscription_flow
 from ..utils import flatten_json
+from ..storage.storage import STORAGE
 
 
 async def register_event(
@@ -96,64 +93,48 @@ async def register_event(
         _get_critical_alert_payload(hass, entity_id) if critical_push_needed else {}
     )
 
-    try:
-        # Get application id's associated with attributes.
-        app_session_ids = await subscription_flow.get_app_session_id_by_attributes(
+    # Get application id's associated with attributes.
+    app_session_ids = STORAGE.get_app_sessions_for_event(
+        entity_id=entity_id,
+        attributes=[attribute[0] for attribute in attributes]
+    )
+
+    # If any app_session_ids are subscribed for these attributes - fire the event
+    # to those app_session_ids for app to catch.
+    if app_session_ids:
+        _fire_event_to_app_session_ids(
+            hass,
+            event,
+            event_id,
             entity_id,
-            [attribute[0] for attribute in attributes],
+            attributes,
+            app_session_ids,
         )
 
-        # If any app_session_ids are subscribed for these attributes - fire the event
-        # to those app_session_ids for app to catch.
-        if app_session_ids:
-            _fire_event_to_app_session_ids(
-                hass,
-                event,
-                event_id,
-                entity_id,
-                attributes,
-                app_session_ids,
-            )
-
-        if data := hass.data.get(DOMAIN, None):
-            push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
-            push_server_timeout = data.get(
-                "push_server_timeout",
-                ClientTimeout(total=PUSH_SERVER_TIMEOUT),
-            )
-        else:
-            LOGGER.error(
-                "Can't register event entity: %s attributes %s. Domain data is missing",
-                entity_id,
-                attributes,
-            )
-            return
-
-        pushed_events = await push_data_flow.register_event(
-            async_get_clientsession(hass),
-            push_server_url,
-            push_server_timeout,
-            push_data=events,
-            critical_push_needed=critical_push_needed,
-            critical_alert_payload=critical_alert_payload,
+    if data := hass.data.get(DOMAIN, None):
+        push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
+        push_server_timeout = data.get(
+            "push_server_timeout",
+            ClientTimeout(total=PUSH_SERVER_TIMEOUT),
         )
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            _log_pushed_events(pushed_events)
-
-    except DatabaseError as e:
+    else:
         LOGGER.error(
-            "Can't register event entity: %s attributes %s. Database error. %s",
+            "Can't register event entity: %s attributes %s. Domain data is missing",
             entity_id,
             attributes,
-            e,
         )
+        return
 
-    except DomikaFrameworkBaseError:
-        LOGGER.exception(
-            "Can't register event entity: %s attributes %s. Framework error",
-            entity_id,
-            attributes,
-        )
+    pushed_events = await push_data_flow.register_event(
+        async_get_clientsession(hass),
+        push_server_url,
+        push_server_timeout,
+        push_data=events,
+        critical_push_needed=critical_push_needed,
+        critical_alert_payload=critical_alert_payload,
+    )
+    if LOGGER.isEnabledFor(logging.DEBUG):
+        _log_pushed_events(pushed_events)
 
 
 def _get_critical_alert_payload(hass: HomeAssistant, entity_id: str) -> dict:

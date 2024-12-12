@@ -30,7 +30,7 @@ from .sessions import router as device_router
 from .storage import storage as storage
 from .entity import router as entity_router
 from .ha_event import event_pusher, flow as ha_event_flow, router as ha_event_router
-from .key_value_storage import router as key_value_router
+from .key_value import router as key_value_router
 from .storage.storage import STORAGE
 from .subscription import router as subscription_router
 

@@ -1,7 +1,6 @@
 """Subscription data router."""
 
 from typing import Any, cast
-
 import voluptuous as vol
 
 from homeassistant.components.websocket_api import (
@@ -13,7 +12,7 @@ from homeassistant.core import HomeAssistant
 
 from ..const import LOGGER
 from ..storage.storage import STORAGE
-from ..errors import DomikaFrameworkBaseError
+from ..push_data.pushdatastorage import PUSHDATA_STORAGE
 from ..utils import flatten_json
 
 
@@ -62,16 +61,5 @@ async def websocket_domika_resubscribe(
             )
     connection.send_result(msg_id, {"entities": res_list})
 
-    try:
-        async with database_core.get_session() as session:
-            await STORAGE.app_session_resubscribe(app_session_id, subscriptions)
-            # TODO STORAGE: replace with push_data storage
-            # await push_data_service.delete_for_app_session(
-            #     session,
-            #     app_session_id=app_session_id,
-            # )
-
-    except DomikaFrameworkBaseError as e:
-        LOGGER.error('Can\'t resubscribe "%s". Framework error. %s', subscriptions, e)
-    except Exception:  # noqa: BLE001
-        LOGGER.exception('Can\'t resubscribe "%s". Unhandled error', subscriptions)
+    await STORAGE.app_session_resubscribe(app_session_id, subscriptions)
+    PUSHDATA_STORAGE.remove_by_app_session_id(app_session_id=app_session_id)
