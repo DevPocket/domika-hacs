@@ -1,7 +1,6 @@
 """HA event router."""
 
 from typing import Any, cast
-
 import voluptuous as vol
 
 from homeassistant.components.websocket_api import (
@@ -12,7 +11,7 @@ from homeassistant.components.websocket_api import (
 from homeassistant.core import HomeAssistant
 
 from ..const import LOGGER
-from ..errors import DomikaFrameworkBaseError
+from ..push_data.pushdatastorage import PUSHDATA_STORAGE
 
 
 @websocket_command(
@@ -44,15 +43,4 @@ async def websocket_domika_confirm_events(
     app_session_id = msg.get("app_session_id")
 
     if event_ids and app_session_id:
-        try:
-            pass
-            # TODO STORAGE — rewrite
-            # await push_data_service.delete(event_ids, app_session_id)
-        except DomikaFrameworkBaseError as e:
-            LOGGER.error(
-                'Can\'t confirm events "%s". Framework error. %s',
-                event_ids,
-                e,
-            )
-        except Exception:  # noqa: BLE001
-            LOGGER.exception('Can\'t confirm events "%s". Unhandled error', event_ids)
+        PUSHDATA_STORAGE.remove_by_event_ids(app_session_id=app_session_id, event_ids=event_ids)

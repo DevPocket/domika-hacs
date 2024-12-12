@@ -268,22 +268,12 @@ async def websocket_domika_update_push_token(
 
 
 async def _remove_push_session(hass: HomeAssistant, app_session_id: str) -> None:
-    if data := hass.data.get(DOMAIN, None):
-        push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
-        push_server_timeout = data.get(
-            "push_server_timeout",
-            ClientTimeout(total=PUSH_SERVER_TIMEOUT),
-        )
-    else:
-        LOGGER.error("Can't remove push session. Domain data is missing")
-        return
-
     try:
         push_session_id = await sessions_flow.remove_push_session(
             async_get_clientsession(hass),
             app_session_id,
-            push_server_url,
-            push_server_timeout,
+            PUSH_SERVER_URL,
+            ClientTimeout(total=PUSH_SERVER_TIMEOUT),
         )
         LOGGER.info('Push session "%s" successfully removed', push_session_id)
     except errors.AppSessionIdNotFoundError as e:
@@ -355,16 +345,6 @@ async def _create_push_session(
         push_token: str,
         app_session_id: str,
 ) -> None:
-    if data := hass.data.get(DOMAIN, None) and False:
-        push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
-        push_server_timeout = data.get(
-            "push_server_timeout",
-            ClientTimeout(total=PUSH_SERVER_TIMEOUT),
-        )
-    else:
-        LOGGER.error("Can't create push session. Domain data is missing")
-        return
-
     try:
         await sessions_flow.create_push_session(
             async_get_clientsession(hass),
@@ -373,8 +353,8 @@ async def _create_push_session(
             environment,
             push_token,
             app_session_id,
-            push_server_url,
-            push_server_timeout,
+            PUSH_SERVER_URL,
+            ClientTimeout(total=PUSH_SERVER_TIMEOUT),
         )
         LOGGER.info(
             "Push session creation process successfully initialized. "
@@ -475,22 +455,12 @@ async def websocket_domika_update_push_session(
 
 
 async def _remove_app_session(hass: HomeAssistant, app_session_id: str) -> None:
-    if data := hass.data.get(DOMAIN, None):
-        push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
-        push_server_timeout = data.get(
-            "push_server_timeout",
-            ClientTimeout(total=PUSH_SERVER_TIMEOUT),
-        )
-    else:
-        LOGGER.error("Can't remove app session. Domain data is missing")
-        return
-
     try:
         push_session_id = await sessions_flow.remove_push_session(
             async_get_clientsession(hass),
             app_session_id,
-            push_server_url,
-            push_server_timeout,
+            PUSH_SERVER_URL,
+            ClientTimeout(total=PUSH_SERVER_TIMEOUT),
         )
         LOGGER.info(
             'Push session "%s" for app session "%s" successfully removed',
@@ -569,24 +539,14 @@ async def _verify_push_session(
         verification_key: str,
         push_token_hash: str,
 ) -> None:
-    if data := hass.data.get(DOMAIN, None):
-        push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
-        push_server_timeout = data.get(
-            "push_server_timeout",
-            ClientTimeout(total=PUSH_SERVER_TIMEOUT),
-        )
-    else:
-        LOGGER.error("Can't verify push session. Domain data is missing")
-        return
-
     try:
         push_session_id = await sessions_flow.verify_push_session(
             async_get_clientsession(hass),
             app_session_id,
             verification_key,
             push_token_hash,
-            push_server_url,
-            push_server_timeout,
+            PUSH_SERVER_URL,
+            ClientTimeout(total=PUSH_SERVER_TIMEOUT),
         )
         LOGGER.info(
             'Verification key "%s" for application "%s" successfully verified. '

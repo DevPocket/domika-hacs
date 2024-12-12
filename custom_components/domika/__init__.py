@@ -21,9 +21,7 @@ from .const import (
     DB_DRIVER,
     DB_NAME,
     DOMAIN,
-    LOGGER,
-    PUSH_SERVER_TIMEOUT,
-    PUSH_SERVER_URL
+    LOGGER
 )
 from .critical_sensor import router as critical_sensor_router
 from .sessions import router as device_router
@@ -33,6 +31,7 @@ from .ha_event import event_pusher, flow as ha_event_flow, router as ha_event_ro
 from .key_value import router as key_value_router
 from .storage.storage import STORAGE
 from .subscription import router as subscription_router
+from . import push_data
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -64,8 +63,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN] = {}
     hass.data[DOMAIN]["critical_entities"] = entry.options.get("critical_entities")
     hass.data[DOMAIN]["entry"] = entry
-    hass.data[DOMAIN]["push_server_url"] = PUSH_SERVER_URL
-    hass.data[DOMAIN]["push_server_timeout"] = ClientTimeout(total=PUSH_SERVER_TIMEOUT)
 
     # Init storage.
     await storage.init_storage(hass)
@@ -191,9 +188,6 @@ async def async_unload_entry(hass: HomeAssistant, _entry: ConfigEntry) -> bool:
         cancel_event_listening()
 
     await asyncio.sleep(0)
-
-    # Close db.
-    await database_core.close_db()
 
     # Clear hass data.
     hass.data.pop(DOMAIN, None)

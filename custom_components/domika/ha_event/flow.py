@@ -3,9 +3,9 @@
 from collections.abc import Iterable
 import logging
 import uuid
-
 from aiohttp import ClientTimeout
 
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.const import ATTR_DEVICE_CLASS
 from homeassistant.core import (
     CompressedState,
@@ -13,7 +13,6 @@ from homeassistant.core import (
     EventStateChangedData,
     HomeAssistant,
 )
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from ..const import (
     CRITICAL_PUSH_ALERT_STRINGS,
@@ -28,7 +27,6 @@ from ..critical_sensor import service as critical_sensor_service
 from ..critical_sensor.enums import NotificationType
 from ..errors import DomikaFrameworkBaseError
 from ..push_data import flow as push_data_flow
-from ..subscription import flow as subscription_flow
 from ..utils import flatten_json
 from ..storage.storage import STORAGE
 
@@ -39,9 +37,7 @@ async def register_event(
 ) -> None:
     """Register new incoming HA event."""
     event_data: EventStateChangedData = event.data
-
     entity_id = event_data["entity_id"]
-
     attributes = _get_changed_attributes_from_event_data(event_data)
 
     LOGGER.debug(
@@ -68,21 +64,7 @@ async def register_event(
             event,
         )
 
-    # Store events into db.
     event_id = str(uuid.uuid4())
-    delay = await _get_delay_by_entity_id(hass, entity_id)
-    events = [
-        DomikaPushDataCreate(
-            event_id=event_id,
-            entity_id=entity_id,
-            attribute=attribute[0],
-            value=attribute[1],
-            context_id=event.context.id,
-            timestamp=int(event.time_fired.timestamp() * 1e6),
-            delay=delay,
-        )
-        for attribute in attributes
-    ]
 
     critical_push_needed = (
         critical_sensor_service.critical_push_needed(hass, entity_id)
@@ -111,24 +93,24 @@ async def register_event(
             app_session_ids,
         )
 
-    if data := hass.data.get(DOMAIN, None):
-        push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
-        push_server_timeout = data.get(
-            "push_server_timeout",
-            ClientTimeout(total=PUSH_SERVER_TIMEOUT),
+    # Store events into db.
+    delay = await _get_delay_by_entity_id(hass, entity_id)
+    events = [
+        DomikaPushDataCreate(
+            event_id=event_id,
+            entity_id=entity_id,
+            attribute=attribute[0],
+            value=attribute[1],
+            context_id=event.context.id,
+            timestamp=int(event.time_fired.timestamp() * 1e6),
+            delay=delay,
         )
-    else:
-        LOGGER.error(
-            "Can't register event entity: %s attributes %s. Domain data is missing",
-            entity_id,
-            attributes,
-        )
-        return
-
+        for attribute in attributes
+    ]
     pushed_events = await push_data_flow.register_event(
         async_get_clientsession(hass),
-        push_server_url,
-        push_server_timeout,
+        PUSH_SERVER_URL,
+        ClientTimeout(total=PUSH_SERVER_TIMEOUT),
         push_data=events,
         critical_push_needed=critical_push_needed,
         critical_alert_payload=critical_alert_payload,
@@ -155,23 +137,13 @@ def _get_critical_alert_payload(hass: HomeAssistant, entity_id: str) -> dict:
 
 async def push_registered_events(hass: HomeAssistant) -> None:
     """Push registered events to the push server."""
-    if data := hass.data.get(DOMAIN, None):
-        push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
-        push_server_timeout = data.get(
-            "push_server_timeout",
-            ClientTimeout(total=PUSH_SERVER_TIMEOUT),
-        )
-    else:
-        LOGGER.error("Can't push registered events. Domain data is missing")
-        return
-
     try:
         async with database_core.get_session() as session:
             pushed_events = await push_data_flow.push_registered_events(
                 session,
                 async_get_clientsession(hass),
-                push_server_url,
-                push_server_timeout,
+                PUSH_SERVER_URL,
+                ClientTimeout(total=PUSH_SERVER_TIMEOUT),
             )
             if LOGGER.isEnabledFor(logging.DEBUG):
                 _log_pushed_events(pushed_events)
