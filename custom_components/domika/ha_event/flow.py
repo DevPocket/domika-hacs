@@ -2,7 +2,9 @@
 
 from collections.abc import Iterable
 import uuid
-from aiohttp import ClientTimeout
+import json
+
+from aiohttp import ClientTimeout, ClientSession, ClientError
 
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.const import ATTR_DEVICE_CLASS
@@ -13,9 +15,9 @@ from homeassistant.core import (
     HomeAssistant,
 )
 
+from .. import statuses, push_server_errors
 from ..const import (
     CRITICAL_PUSH_ALERT_STRINGS,
-    DOMAIN,
     LOGGER,
     PUSH_DELAY_DEFAULT,
     PUSH_DELAY_FOR_DOMAIN,
@@ -30,8 +32,8 @@ from ..storage.storage import STORAGE
 
 
 async def register_event(
-    hass: HomeAssistant,
-    event: Event[EventStateChangedData],
+        hass: HomeAssistant,
+        event: Event[EventStateChangedData],
 ) -> None:
     """Register new incoming HA event."""
     event_data: EventStateChangedData = event.data
@@ -65,8 +67,8 @@ async def register_event(
     event_id = str(uuid.uuid4())
 
     critical_push_needed = (
-        critical_sensor_service.critical_push_needed(hass, entity_id)
-        and attributes.get("s") == "on"
+            critical_sensor_service.critical_push_needed(hass, entity_id)
+            and attributes.get("s") == "on"
     )
 
     critical_alert_payload = (
@@ -108,7 +110,6 @@ async def register_event(
 
         for device in devices_with_push_session:
             await _send_push_data(
-                None,
                 async_get_clientsession(hass),
                 PUSH_SERVER_URL,
                 PUSH_SERVER_TIMEOUT,
@@ -139,9 +140,9 @@ async def push_registered_events(hass: HomeAssistant) -> None:
     """
     Push registered events with delay = 0 to the push server.
 
-    Select registered events with delay = 0, add events with delay > 0 for the same
+    Select push data with delay = 0, add push data with delay > 0 for the same
     app_session_ids, create formatted push data, send it to the push server api,
-    delete all registered events for involved app sessions.
+    delete all processed push data.
 
     Raises:
         push_server_errors.DomikaPushServerError: in case of internal aiohttp error.
@@ -151,17 +152,8 @@ async def push_registered_events(hass: HomeAssistant) -> None:
     """
     LOGGER.debug("Push_registered_events started.")
 
-    result: list[DomikaPushedEvents] = []
-    await decrease_delay_all(db_session)
-
-    stmt = sqlalchemy.select(PushData, Device.push_session_id)
-    stmt = stmt.join(Device, PushData.app_session_id == Device.app_session_id)
-    stmt = stmt.where(Device.push_session_id.is_not(None))
-    stmt = stmt.order_by(
-        Device.push_session_id,
-        PushData.entity_id,
-    )
-    push_data_records = (await db_session.execute(stmt)).all()
+    PUSHDATA_STORAGE.decrease_delay()
+    push_data_records = PUSHDATA_STORAGE.get_all_sorted()
 
     # Create push data dict.
     # Format example:
@@ -179,6 +171,7 @@ async def push_registered_events(hass: HomeAssistant) -> None:
     # '     }
     # '  },
     # '}
+
     app_sessions_ids_to_delete_list: list[str] = []
     events_dict = {}
     current_entity_id: str | None = None
@@ -188,69 +181,65 @@ async def push_registered_events(hass: HomeAssistant) -> None:
 
     entity = {}
     for push_data_record in push_data_records:
-        if current_app_session_id != push_data_record[0].app_session_id:
+        if current_app_session_id != push_data_record.app_session_id:
             if (
-                found_delay_zero
-                and events_dict
-                and current_push_session_id
-                and current_app_session_id
+                    found_delay_zero
+                    and events_dict
+                    and current_push_session_id
+                    and current_app_session_id
             ):
-                result.append(DomikaPushedEvents(current_push_session_id, events_dict))
                 await _send_push_data(
-                    db_session,
-                    http_session,
-                    push_server_url,
-                    push_server_timeout,
+                    async_get_clientsession(hass),
+                    PUSH_SERVER_URL,
+                    PUSH_SERVER_TIMEOUT,
                     current_app_session_id,
                     current_push_session_id,
                     events_dict,
                 )
                 app_sessions_ids_to_delete_list.append(current_app_session_id)
-            current_push_session_id = push_data_record[1]
-            current_app_session_id = push_data_record[0].app_session_id
+            current_push_session_id = push_data_record.push_session_id
+            current_app_session_id = push_data_record.app_session_id
             current_entity_id = None
             events_dict = {}
             found_delay_zero = False
-        if current_entity_id != push_data_record[0].entity_id:
+        if current_entity_id != push_data_record.entity_id:
             entity = {}
-            events_dict[push_data_record[0].entity_id] = entity
-            current_entity_id = push_data_record[0].entity_id
-        entity[push_data_record[0].attribute] = {
-            "v": push_data_record[0].value,
-            "t": push_data_record[0].timestamp,
+            events_dict[push_data_record.entity_id] = entity
+            current_entity_id = push_data_record.entity_id
+        entity[push_data_record.attribute] = {
+            "v": push_data_record.value,
+            "t": push_data_record.timestamp,
         }
-        found_delay_zero = found_delay_zero or (push_data_record[0].delay == 0)
+        found_delay_zero = found_delay_zero or (push_data_record.delay == 0)
 
     if (
-        found_delay_zero
-        and events_dict
-        and current_push_session_id
-        and current_app_session_id
+            found_delay_zero
+            and events_dict
+            and current_push_session_id
+            and current_app_session_id
     ):
-        result.append(DomikaPushedEvents(current_push_session_id, events_dict))
         await _send_push_data(
-            async_get_clientsession(hass),,
+            async_get_clientsession(hass),
             PUSH_SERVER_URL,
             PUSH_SERVER_TIMEOUT,
             current_app_session_id,
             current_push_session_id,
-            events_dict,
+            events_dict
         )
         app_sessions_ids_to_delete_list.append(current_app_session_id)
 
-    await delete_by_app_session_id(db_session, app_sessions_ids_to_delete_list)
+    PUSHDATA_STORAGE.remove_by_app_session_ids(app_sessions_ids_to_delete_list)
 
 
 async def _send_push_data(
-    db_session: AsyncSession | None,
-    http_session: aiohttp.ClientSession,
-    push_server_url: str,
-    push_server_timeout: ClientTimeout,
-    app_session_id: str,
-    push_session_id: str,
-    critical_alert_payload: dict,
-    *,
-    critical: bool = False,
+        http_session: ClientSession,
+        push_server_url: str,
+        push_server_timeout: ClientTimeout,
+        app_session_id: str,
+        push_session_id: str,
+        critical_alert_payload: dict,
+        *,
+        critical: bool = False,
 ) -> None:
     LOGGER.debug(
         "Push events %sto %s. %s",
@@ -277,53 +266,16 @@ async def _send_push_data(
                 return
 
             if resp.status == statuses.HTTP_401_UNAUTHORIZED:
-                if db_session is None:
-                    # Create database session implicitly.
-                    async with database_core.get_session() as db_session_:
-                        await _clear_push_session_id(
-                            db_session_,
-                            app_session_id,
-                            push_session_id,
-                        )
-                    return
-
-                await _clear_push_session_id(
-                    db_session,
-                    app_session_id,
-                    push_session_id,
-                )
+                await STORAGE.remove_push_session(app_session_id)
                 return
 
             if resp.status == statuses.HTTP_400_BAD_REQUEST:
                 raise push_server_errors.BadRequestError(await resp.json())
 
             raise push_server_errors.UnexpectedServerResponseError(resp.status)
-    except aiohttp.ClientError as e:
+    except ClientError as e:
         raise push_server_errors.DomikaPushServerError(str(e)) from None
 
-
-async def _clear_push_session_id(
-    app_session_id: str,
-    push_session_id: str,
-) -> None:
-    # Push session id not found on push server.
-    # Remove push session id for sessions.
-    device = STORAGE.get_app_session(app_session_id)
-    if device:
-        LOGGER.debug(
-            'The server rejected push session id "%s"',
-            push_session_id,
-        )
-        await device_service.update(
-            db_session,
-            device,
-            DomikaDeviceUpdate(push_session_id=None),
-        )
-        LOGGER.debug(
-            'Push session "%s" for app session "%s" successfully removed',
-            push_session_id,
-            app_session_id,
-        )
 
 def _get_changed_attributes_from_event_data(event_data: EventStateChangedData) -> dict:
     old_state: CompressedState | dict = {}
@@ -343,8 +295,8 @@ def _get_changed_attributes_from_event_data(event_data: EventStateChangedData) -
 
 
 def _fire_critical_sensor_notification(
-    hass: HomeAssistant,
-    event: Event[EventStateChangedData],
+        hass: HomeAssistant,
+        event: Event[EventStateChangedData],
 ) -> None:
     # If entity id is a critical binary sensor.
     # Fetch state for all levels of critical binary sensors.
@@ -363,12 +315,12 @@ def _fire_critical_sensor_notification(
 
 
 def _fire_event_to_app_session_ids(
-    hass: HomeAssistant,
-    event: Event[EventStateChangedData],
-    event_id: str,
-    entity_id: str,
-    attributes: dict,
-    app_session_ids: Iterable[str],
+        hass: HomeAssistant,
+        event: Event[EventStateChangedData],
+        event_id: str,
+        entity_id: str,
+        attributes: dict,
+        app_session_ids: Iterable[str],
 ) -> None:
     dict_attributes = attributes
     dict_attributes["d.type"] = "state_changed"

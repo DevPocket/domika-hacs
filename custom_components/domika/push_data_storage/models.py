@@ -6,6 +6,7 @@ from dataclasses import dataclass
 class PushData:
     event_id: str
     app_session_id: str
+    push_session_id: str
     entity_id: str
     attribute: str
     value: str

@@ -30,6 +30,15 @@ class PushDataStorage:
                 if stored_app_session_id == app_session_id
             ]
 
+    def decrease_delay(self):
+        """
+        Decrease the delay field in all PushData objects in storage by 1.
+        Ensure delay never goes below 0.
+        """
+        with self.lock:
+            for push_data in self.storage.values():
+                push_data.delay = max(0, push_data.delay - 1)
+
     def remove_by_event_ids(self, app_session_id: str, event_ids: List[str]):
         """ Remove PushData objects from storage for the given list of event_ids within a specific app_session_id. """
         with self.lock:
@@ -53,6 +62,22 @@ class PushDataStorage:
             for key in keys_to_remove:
                 self.storage.pop(key)
 
+    def remove_by_app_session_ids(self, app_session_ids: [str]):
+        """
+        Remove all PushData objects from storage for the given list of app_session_ids.
+        """
+        with self.lock:
+            keys_to_remove = [
+                key for key in self.storage.keys()
+                if key[0] in app_session_ids
+            ]
+            for key in keys_to_remove:
+                self.storage.pop(key)
+
+    def get_all_sorted(self) -> List[PushData]:
+        """ Retrieve all PushData objects ordered by app_session_id and entity_id. """
+        return sorted(self.storage.values(), key=lambda x: (x.push_session_id, x.entity_id))
+
     def process_entity_changes(
             self,
             app_sessions_data: dict,
@@ -73,8 +98,11 @@ class PushDataStorage:
         - changed_attributes: A dictionary {attribute: new_value}.
         """
         for app_session_id, session_data in app_sessions_data.items():
-            subscriptions = session_data.get("subscriptions", [])
+            push_session_id = session_data.get('push_session_id')
+            if not push_session_id:
+                continue
 
+            subscriptions = session_data.get("subscriptions", [])
             for subscription in subscriptions:
                 entity_id = subscription["entity_id"]
                 attribute = subscription["attribute"]
@@ -85,6 +113,7 @@ class PushDataStorage:
                         push_data = PushData(
                             event_id=event_id,
                             app_session_id=app_session_id,
+                            push_session_id=push_session_id,
                             entity_id=entity_id,
                             attribute=attribute,
                             value=changed_attributes[attribute],

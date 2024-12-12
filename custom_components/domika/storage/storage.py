@@ -181,6 +181,10 @@ class Storage:
         with APP_SESSIONS_LOCK:
             if data := self._app_sessions_data.get(app_session_id):
                 data['push_session_id'] = ''
+                LOGGER.debug(
+                    'Push session for app session "%s" successfully removed',
+                    app_session_id,
+                )
                 await self._save_app_sessions_data()
 
     # Returns AppSession object, or None if not found
