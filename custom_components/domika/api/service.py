@@ -1,25 +1,30 @@
 """HA entity service."""
 
-from collections.abc import Sequence
-import uuid
-
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from homeassistant.core import async_get_hass
 
 from ..const import LOGGER
-from ..domika_ha_framework.subscription import service as subscription_service
-from ..domika_ha_framework.utils import flatten_json
-from .models import DomikaHaEntity
+from ..utils import flatten_json
+from ..storage.storage import STORAGE
+
+
+class DomikaHaEntity:
+    """Base homeassistant entity state model."""
+    entity_id: str
+    time_updated: float
+    attributes: dict[str, str]
+
+    def __init__(self, entity_id, time_updated, attributes):
+        self.entity_id = entity_id
+        self.time_updated = time_updated
+        self.attributes = attributes
 
 
 async def get(
-    db_session: AsyncSession,
-    app_session_id: uuid.UUID,
-    *,
-    need_push: bool | None = True,
-    entity_id: str | None = None,
-) -> Sequence[DomikaHaEntity]:
+        app_session_id: str,
+        *,
+        need_push: bool | None = True,
+        entity_id: str | None = None,
+) -> list[DomikaHaEntity]:
     """
     Get the attribute state.
 
@@ -30,8 +35,7 @@ async def get(
 
     entities_attributes: dict[str, list[str]] = {}
 
-    subscriptions = await subscription_service.get(
-        db_session,
+    subscriptions = STORAGE.get_app_session_subscriptions(
         app_session_id,
         need_push=need_push,
         entity_id=entity_id,

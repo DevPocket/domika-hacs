@@ -2,7 +2,6 @@
 
 import asyncio
 from http import HTTPStatus
-import uuid
 
 from aiohttp import web
 
@@ -11,10 +10,7 @@ from homeassistant.core import async_get_hass
 from homeassistant.helpers.json import json_bytes
 
 from ..const import DOMAIN, LOGGER
-from ..domika_ha_framework.database import core as database_core
-from ..domika_ha_framework.errors import DomikaFrameworkBaseError
-from ..domika_ha_framework.push_data import service as push_data_service
-from ..ha_entity import service as ha_entity_service
+from .service import *
 
 
 class DomikaAPIDomainServicesView(APIDomainServicesView):
@@ -38,11 +34,10 @@ class DomikaAPIDomainServicesView(APIDomainServicesView):
         # Perform control over entities via given request.
         response = await super().post(request, domain, service)
 
-        try:
-            app_session_id = uuid.UUID(request.headers.get("X-App-Session-Id"))
-        except (TypeError, ValueError):
+        app_session_id = request.headers.get("X-App-Session-Id")
+        if not app_session_id:
             return self.json_message(
-                "Missing or malformed X-App-Session-Id.",
+                "Missing  X-App-Session-Id.",
                 HTTPStatus.UNAUTHORIZED,
             )
 
@@ -59,26 +54,12 @@ class DomikaAPIDomainServicesView(APIDomainServicesView):
 
         await asyncio.sleep(delay)
 
-        try:
-            async with database_core.get_session() as session:
-                result = await ha_entity_service.get(session, app_session_id)
-                await push_data_service.delete_for_app_session(
-                    session,
-                    app_session_id=app_session_id,
-                )
-
-        except DomikaFrameworkBaseError as e:
-            LOGGER.error("DomikaAPIDomainServicesView post. Framework error. %s", e)
-            return self.json_message(
-                "Framework error.",
-                HTTPStatus.INTERNAL_SERVER_ERROR,
-            )
-        except Exception:  # noqa: BLE001
-            LOGGER.exception("DomikaAPIDomainServicesView post. Unhandled error")
-            return self.json_message(
-                "Internal error.",
-                HTTPStatus.INTERNAL_SERVER_ERROR,
-            )
+        result = await get(app_session_id)
+        # TODO STORAGE — rewrite
+        # await push_data_service.delete_for_app_session(
+        #     session,
+        #     app_session_id=app_session_id,
+        # )
 
         LOGGER.debug("DomikaAPIDomainServicesView data: %s", {"entities": result})
         data = json_bytes({"entities": result})

@@ -1,8 +1,6 @@
 """Application device router."""
 
-import contextlib
 from typing import TYPE_CHECKING, Any, cast
-import uuid
 
 from aiohttp import ClientTimeout
 import voluptuous as vol
@@ -24,10 +22,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from ..const import DOMAIN, LOGGER, PUSH_SERVER_TIMEOUT, PUSH_SERVER_URL
-from ..domika_ha_framework import errors, push_server_errors
-from ..domika_ha_framework.database import core as database_core
-from ..domika_ha_framework.device import flow as device_flow, service as device_service
-from ..domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..storage.storage import STORAGE
+from .. import errors, push_server_errors
+from . import flow as device_flow
 
 if TYPE_CHECKING:
     from hass_nabucasa import Cloud
@@ -83,15 +80,14 @@ def _get_entry(hass: HomeAssistant) -> ConfigEntry | None:
 
 
 def _check_app_compatibility(
-    os_platform: str,
-    os_version: str,
-    app_id: str,
-    app_version: str,
+        os_platform: str,
+        os_version: str,
+        app_id: str,
+        app_version: str,
 ) -> bool:
     del os_platform
     del os_version
     del app_id
-
     return app_version != "0"
 
 
@@ -108,9 +104,9 @@ def _check_app_compatibility(
 )
 @async_response
 async def websocket_domika_update_app_session(
-    hass: HomeAssistant,
-    connection: ActiveConnection,
-    msg: dict[str, Any],
+        hass: HomeAssistant,
+        connection: ActiveConnection,
+        msg: dict[str, Any],
 ) -> None:
     """Handle domika update app session request."""
     msg_id: int | None = msg.get("id")
@@ -136,95 +132,94 @@ async def websocket_domika_update_app_session(
         connection.send_error(msg_id, "unsupported", "unsupported app or platform")
     else:
         push_token_hash = cast(str, msg.get("push_token_hash") or "")
-        app_session_id: uuid.UUID | None = None
-        with contextlib.suppress(TypeError):
-            app_session_id = uuid.UUID(msg.get("app_session_id"))
+        app_session_id = msg.get("app_session_id")
 
-        try:
-            async with database_core.get_session() as session:
-                (
-                    app_session_id,
-                    old_app_session_ids,
-                ) = await device_flow.update_app_session_id(
-                    session,
-                    app_session_id,
-                    connection.user.id,
-                    push_token_hash,
-                )
-                LOGGER.info('Successfully updated app session id "%s"', app_session_id)
+        (app_session_id, old_app_session_ids) = await _update_app_session(
+            app_session_id,
+            connection.user.id,
+            push_token_hash,
+        )
+        LOGGER.info('Successfully updated app session id "%s"', app_session_id)
 
-            result = {
-                "app_session_id": str(app_session_id),
-                "old_app_session_ids": old_app_session_ids,
-            }
-            result.update(await _get_hass_network_properties(hass))
-        except DomikaFrameworkBaseError as e:
-            LOGGER.error("Can't updated app session id. Framework error. %s", e)
-            result = {
-                "app_session_id": str(app_session_id),
-                "old_app_session_ids": str(app_session_id),
-            }
-        except Exception:  # noqa: BLE001
-            LOGGER.exception("Can't updated app session id. Unhandled error")
-            result = {
-                "app_session_id": str(app_session_id),
-                "old_app_session_ids": str(app_session_id),
-            }
+        result = {
+            "app_session_id": str(app_session_id),
+            "old_app_session_ids": old_app_session_ids,
+        }
+        result.update(await _get_hass_network_properties(hass))
 
         connection.send_result(msg_id, result)
         LOGGER.debug("Update_app_session msg_id=%s data=%s", msg_id, result)
 
 
-async def _check_push_token(
-    hass: HomeAssistant,
-    app_session_id: uuid.UUID,
-    push_token_hash: str,
-) -> None:
-    try:
-        async with database_core.get_session() as session:
-            device = await device_service.get(session, app_session_id)
-            if device:
-                if device.push_session_id and device.push_token_hash == push_token_hash:
-                    event_result = {
-                        "d.type": "push_activation",
-                        "push_activation_success": True,
-                    }
-                    LOGGER.info('Push token hash "%s" check. OK', push_token_hash)
-                else:
-                    event_result = {
-                        "d.type": "push_activation",
-                        "push_activation_success": False,
-                    }
-                    LOGGER.info(
-                        'Push token hash "%s" check. Need validation',
-                        push_token_hash,
-                    )
-            else:
-                event_result = {
-                    "d.type": "push_activation",
-                    "push_activation_success": False,
-                }
-                LOGGER.info(
-                    'Push token hash "%s" check. Device not found',
-                    push_token_hash,
-                )
-    except DomikaFrameworkBaseError as e:
-        event_result = {
-            "d.type": "push_activation",
-            "push_activation_success": False,
-        }
-        LOGGER.error(
-            'Can\'t check push token "%s". Framework error %s',
-            push_token_hash,
-            e,
+async def _update_app_session(
+        app_session_id: str,
+        user_id: str,
+        push_token_hash: str
+) -> (str, list):
+    new_app_session_id: str | None = None
+    # Try to find the proper record.
+    app_session = STORAGE.get_app_session(app_session_id)
+    if app_session:
+        # If found and user_id matches - update last_update.
+        if app_session.user_id == user_id:
+            new_app_session_id = app_session_id
+            await STORAGE.update_app_session_last_update(app_session_id)
+        else:
+            LOGGER.debug(
+                "_update_app_session user_id mismatch: got %s, in storage: %s.",
+                user_id,
+                app_session.user_id,
+            )
+            await STORAGE.remove_app_session(app_session_id)
+    if not new_app_session_id:
+        new_app_session_id = await STORAGE.create_app_session(user_id, push_token_hash)
+    LOGGER.debug(
+        "_update_app_session new app_session_id created: %s.",
+        new_app_session_id,
+    )
+    result_old_app_sessions: list[str] = []
+    if push_token_hash:
+        result_old_app_sessions = STORAGE.get_app_session_ids_with_hash(push_token_hash)
+        if new_app_session_id in result_old_app_sessions:
+            result_old_app_sessions.remove(new_app_session_id)
+    if result_old_app_sessions:
+        LOGGER.debug(
+            "_update_app_session result_old_app_sessions: %s.",
+            result_old_app_sessions,
         )
-    except Exception:  # noqa: BLE001
+    return new_app_session_id, result_old_app_sessions
+
+
+async def _check_push_token(
+        hass: HomeAssistant,
+        app_session_id: str,
+        push_token_hash: str,
+) -> None:
+    app_session_data = STORAGE.get_app_session(app_session_id)
+
+    if app_session_data:
+        if app_session_data.push_session_id and app_session_data.push_token_hash == push_token_hash:
+            event_result = {
+                "d.type": "push_activation",
+                "push_activation_success": True,
+            }
+            LOGGER.info('Push token hash "%s" check. OK', push_token_hash)
+        else:
+            event_result = {
+                "d.type": "push_activation",
+                "push_activation_success": False,
+            }
+            LOGGER.info(
+                'Push token hash "%s" check. Need validation',
+                push_token_hash,
+            )
+    else:
         event_result = {
             "d.type": "push_activation",
             "push_activation_success": False,
         }
-        LOGGER.exception(
-            'Can\'t check push token "%s". Unhandled error',
+        LOGGER.info(
+            'Push token hash "%s" check. Device not found',
             push_token_hash,
         )
 
@@ -234,15 +229,15 @@ async def _check_push_token(
 @websocket_command(
     {
         vol.Required("type"): "domika/update_push_token",
-        vol.Required("app_session_id"): vol.Coerce(uuid.UUID),
+        vol.Required("app_session_id"): str,
         vol.Required("push_token_hash"): str,
     },
 )
 @async_response
 async def websocket_domika_update_push_token(
-    hass: HomeAssistant,
-    connection: ActiveConnection,
-    msg: dict[str, Any],
+        hass: HomeAssistant,
+        connection: ActiveConnection,
+        msg: dict[str, Any],
 ) -> None:
     """Handle domika update push token request."""
     msg_id: int | None = msg.get("id")
@@ -265,14 +260,14 @@ async def websocket_domika_update_push_token(
         hass,
         _check_push_token(
             hass,
-            cast(uuid.UUID, msg.get("app_session_id")),
-            cast(str, msg.get("push_token_hash")),
+            msg.get("app_session_id"),
+            msg.get("push_token_hash"),
         ),
         "check_push_token",
     )
 
 
-async def _remove_push_session(hass: HomeAssistant, app_session_id: uuid.UUID) -> None:
+async def _remove_push_session(hass: HomeAssistant, app_session_id: str) -> None:
     if data := hass.data.get(DOMAIN, None):
         push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
         push_server_timeout = data.get(
@@ -284,15 +279,13 @@ async def _remove_push_session(hass: HomeAssistant, app_session_id: uuid.UUID) -
         return
 
     try:
-        async with database_core.get_session() as session:
-            push_session_id = await device_flow.remove_push_session(
-                session,
-                async_get_clientsession(hass),
-                app_session_id,
-                push_server_url,
-                push_server_timeout,
-            )
-            LOGGER.info('Push session "%s" successfully removed', push_session_id)
+        push_session_id = await device_flow.remove_push_session(
+            async_get_clientsession(hass),
+            app_session_id,
+            push_server_url,
+            push_server_timeout,
+        )
+        LOGGER.info('Push session "%s" successfully removed', push_session_id)
     except errors.AppSessionIdNotFoundError as e:
         LOGGER.info(
             'Can\'t remove push session. Application with id "%s" not found',
@@ -317,14 +310,14 @@ async def _remove_push_session(hass: HomeAssistant, app_session_id: uuid.UUID) -
 @websocket_command(
     {
         vol.Required("type"): "domika/remove_push_session",
-        vol.Required("app_session_id"): vol.Coerce(uuid.UUID),
+        vol.Required("app_session_id"): str,
     },
 )
 @async_response
 async def websocket_domika_remove_push_session(
-    hass: HomeAssistant,
-    connection: ActiveConnection,
-    msg: dict[str, Any],
+        hass: HomeAssistant,
+        connection: ActiveConnection,
+        msg: dict[str, Any],
 ) -> None:
     """Handle domika remove push session request."""
     msg_id: int | None = msg.get("id")
@@ -349,18 +342,18 @@ async def websocket_domika_remove_push_session(
 
     entry.async_create_task(
         hass,
-        _remove_push_session(hass, cast(uuid.UUID, msg.get("app_session_id"))),
+        _remove_push_session(hass, msg.get("app_session_id")),
         "remove_push_session",
     )
 
 
 async def _create_push_session(
-    hass: HomeAssistant,
-    original_transaction_id: str,
-    platform: str,
-    environment: str,
-    push_token: str,
-    app_session_id: str,
+        hass: HomeAssistant,
+        original_transaction_id: str,
+        platform: str,
+        environment: str,
+        push_token: str,
+        app_session_id: str,
 ) -> None:
     if data := hass.data.get(DOMAIN, None) and False:
         push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
@@ -442,9 +435,9 @@ async def _create_push_session(
 )
 @async_response
 async def websocket_domika_update_push_session(
-    hass: HomeAssistant,
-    connection: ActiveConnection,
-    msg: dict[str, Any],
+        hass: HomeAssistant,
+        connection: ActiveConnection,
+        msg: dict[str, Any],
 ) -> None:
     """Handle domika update push session request."""
     msg_id: int | None = msg.get("id")
@@ -481,7 +474,7 @@ async def websocket_domika_update_push_session(
     )
 
 
-async def _remove_app_session(hass: HomeAssistant, app_session_id: uuid.UUID) -> None:
+async def _remove_app_session(hass: HomeAssistant, app_session_id: str) -> None:
     if data := hass.data.get(DOMAIN, None):
         push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
         push_server_timeout = data.get(
@@ -493,63 +486,57 @@ async def _remove_app_session(hass: HomeAssistant, app_session_id: uuid.UUID) ->
         return
 
     try:
-        async with database_core.get_session() as session:
-            try:
-                push_session_id = await device_flow.remove_push_session(
-                    session,
-                    async_get_clientsession(hass),
-                    app_session_id,
-                    push_server_url,
-                    push_server_timeout,
-                )
-                LOGGER.info(
-                    'Push session "%s" for app session "%s" successfully removed',
-                    push_session_id,
-                    app_session_id,
-                )
-            except errors.AppSessionIdNotFoundError as e:
-                LOGGER.error(
-                    'Can\'t remove app session. Application with id "%s" not found',
-                    e.app_session_id,
-                )
-                return
-            except errors.PushSessionIdNotFoundError:
-                pass
-            except push_server_errors.BadRequestError as e:
-                LOGGER.error(
-                    'Can\'t remove push session for app session "%s". '
-                    "Push server error. %s. %s",
-                    app_session_id,
-                    e,
-                    e.body,
-                )
-            except push_server_errors.DomikaPushServerError as e:
-                LOGGER.error(
-                    'Can\'t remove push session for app session "%s". '
-                    "Push server error. %s",
-                    app_session_id,
-                    e,
-                )
+        push_session_id = await device_flow.remove_push_session(
+            async_get_clientsession(hass),
+            app_session_id,
+            push_server_url,
+            push_server_timeout,
+        )
+        LOGGER.info(
+            'Push session "%s" for app session "%s" successfully removed',
+            push_session_id,
+            app_session_id,
+        )
 
-            await device_service.delete(session, app_session_id)
-            LOGGER.info('App session "%s" successfully removed', app_session_id)
-    except errors.DomikaFrameworkBaseError as e:
-        LOGGER.error("Can't remove app session. Framework error. %s", e)
+        await STORAGE.remove_app_session(app_session_id)
+        LOGGER.info('App session "%s" successfully removed', app_session_id)
+    except errors.AppSessionIdNotFoundError as e:
+        LOGGER.error(
+            'Can\'t remove app session. Application with id "%s" not found',
+            e.app_session_id,
+        )
+        return
+    except errors.PushSessionIdNotFoundError:
+        pass
+    except push_server_errors.BadRequestError as e:
+        LOGGER.error(
+            'Can\'t remove push session for app session "%s". '
+            "Push server error. %s. %s",
+            app_session_id,
+            e,
+            e.body,
+        )
+    except push_server_errors.DomikaPushServerError as e:
+        LOGGER.error(
+            'Can\'t remove push session for app session "%s". '
+            "Push server error. %s",
+            app_session_id,
+            e,
+        )
     except Exception:  # noqa: BLE001
         LOGGER.exception("Can't remove app session. Unhandled error")
-
 
 @websocket_command(
     {
         vol.Required("type"): "domika/remove_app_session",
-        vol.Required("app_session_id"): vol.Coerce(uuid.UUID),
+        vol.Required("app_session_id"): str,
     },
 )
 @async_response
 async def websocket_domika_remove_app_session(
-    hass: HomeAssistant,
-    connection: ActiveConnection,
-    msg: dict[str, Any],
+        hass: HomeAssistant,
+        connection: ActiveConnection,
+        msg: dict[str, Any],
 ) -> None:
     """Handle domika remove app session request."""
     msg_id: int | None = msg.get("id")
@@ -570,16 +557,16 @@ async def websocket_domika_remove_app_session(
 
     entry.async_create_task(
         hass,
-        _remove_app_session(hass, cast(uuid.UUID, msg.get("app_session_id"))),
+        _remove_app_session(hass, msg.get("app_session_id")),
         "remove_app_session",
     )
 
 
 async def _verify_push_session(
-    hass: HomeAssistant,
-    app_session_id: uuid.UUID,
-    verification_key: str,
-    push_token_hash: str,
+        hass: HomeAssistant,
+        app_session_id: str,
+        verification_key: str,
+        push_token_hash: str,
 ) -> None:
     if data := hass.data.get(DOMAIN, None):
         push_server_url = data.get("push_server_url", PUSH_SERVER_URL)
@@ -592,16 +579,14 @@ async def _verify_push_session(
         return
 
     try:
-        async with database_core.get_session() as session:
-            push_session_id = await device_flow.verify_push_session(
-                session,
-                async_get_clientsession(hass),
-                app_session_id,
-                verification_key,
-                push_token_hash,
-                push_server_url,
-                push_server_timeout,
-            )
+        push_session_id = await device_flow.verify_push_session(
+            async_get_clientsession(hass),
+            app_session_id,
+            verification_key,
+            push_token_hash,
+            push_server_url,
+            push_server_timeout,
+        )
         LOGGER.info(
             'Verification key "%s" for application "%s" successfully verified. '
             'New push session id "%s". Push token hash "%s"',
@@ -660,16 +645,16 @@ async def _verify_push_session(
 @websocket_command(
     {
         vol.Required("type"): "domika/verify_push_session",
-        vol.Required("app_session_id"): vol.Coerce(uuid.UUID),
+        vol.Required("app_session_id"): str,
         vol.Required("verification_key"): str,
         vol.Required("push_token_hash"): str,
     },
 )
 @async_response
 async def websocket_domika_verify_push_session(
-    hass: HomeAssistant,
-    connection: ActiveConnection,
-    msg: dict[str, Any],
+        hass: HomeAssistant,
+        connection: ActiveConnection,
+        msg: dict[str, Any],
 ) -> None:
     """Handle domika verify push session request."""
     msg_id: int | None = msg.get("id")
@@ -696,7 +681,7 @@ async def websocket_domika_verify_push_session(
         hass,
         _verify_push_session(
             hass,
-            cast(uuid.UUID, msg.get("app_session_id")),
+            msg.get("app_session_id"),
             cast(str, msg.get("verification_key")),
             cast(str, msg.get("push_token_hash")),
         ),

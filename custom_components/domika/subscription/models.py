@@ -1,7 +1,6 @@
 """User event subscriptions models."""
 
 from dataclasses import dataclass, field
-import uuid
 
 from mashumaro import pass_through
 from mashumaro.mixins.json import DataClassJSONMixin
@@ -10,7 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from ..models import AsyncBase
 
-_EntityToAttribute = dict[str, set[uuid.UUID]]
+_EntityToAttribute = dict[str, set[str]]
 SubscriptionMap = dict[str, _EntityToAttribute]
 
 
@@ -19,7 +18,7 @@ class Subscription(AsyncBase):
 
     __tablename__ = "subscriptions"
 
-    app_session_id: Mapped[uuid.UUID] = mapped_column(
+    app_session_id: Mapped[str] = mapped_column(
         ForeignKey("devices.app_session_id", ondelete="CASCADE", onupdate="CASCADE"),
         primary_key=True,
     )
@@ -32,7 +31,7 @@ class Subscription(AsyncBase):
 class DomikaSubscriptionBase(DataClassJSONMixin):
     """Base subscription model."""
 
-    app_session_id: uuid.UUID = field(
+    app_session_id: str = field(
         metadata={
             "serialization_strategy": pass_through,
         },

@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
 import threading
+import uuid
 from datetime import datetime
 
 import sqlalchemy
 from homeassistant.helpers.storage import Store
 from sqlalchemy.exc import SQLAlchemyError
 
-from ..const import DOMAIN, LOGGER
-from ..domika_ha_framework.database import core as database_core
+from ..const import DOMAIN, LOGGER, DEVICE_INACTIVITY_TIME_THRESHOLD, DEVICE_INACTIVITY_CHECK_INTERVAL
 from .models import *
 
 STORAGE_VERSION_USERS = 1
@@ -27,23 +28,6 @@ APP_SESSIONS_LOCK = threading.Lock()
 #     USER_ID1: {KEY1: {"value": V1, "value_hash": VH1}}
 #  }
 class UsersStore(Store[dict[str, Any]]):
-    async def migrate_from_db(self) -> dict[str, Any] | None:
-        LOGGER.debug("---> Migrating users_data from DB")
-        try:
-            async with database_core.get_session() as session:
-                stmt = sqlalchemy.select(KeyValue)
-                db_res = (await session.scalars(stmt)).all()
-        except SQLAlchemyError as e:
-            LOGGER.error("---> Can't migrate from DB: DB error")
-
-        res = {}
-        for key_value in db_res:
-            LOGGER.debug("---> found in DB: %s, %s", key_value.user_id, key_value.key)
-            if not res.get(key_value.user_id):
-                res[key_value.user_id] = {}
-            res[key_value.user_id][key_value.key] = {'value': key_value.value, 'value_hash': key_value.hash}
-        return res
-
     async def _async_migrate_func(
             self,
             old_major_version: int,
@@ -117,42 +101,57 @@ class AppSession:
         )
 
 
+class Subscription:
+    entity_id: str
+    attribute: str
+    need_push: bool
+
+    def __init__(self, entity_id, attribute, need_push):
+        self.entity_id = entity_id
+        self.attribute = attribute
+        self.need_push = need_push
+
+
 class Storage:
     def __init__(self):
         self._users_store = None
-        self._users_data: dict[str, Any] | None = {}
+        self._users_data: dict[str, Any] = {}
         self._app_sessions_store = None
-        self._app_sessions_data: dict[str, Any] | None = {}
+        self._app_sessions_data: dict[str, Any] = {}
 
     async def load_data(self, hass):
-        self._users_store = UsersStore(
-            hass, STORAGE_VERSION_USERS, STORAGE_KEY_USERS
-        )
-        if (users_data := await self._users_store.async_load()) is None:
-            LOGGER.debug("---> Can't load data from users_storage")
-            self._users_data = await self._users_store.migrate_from_db()
-            await self._save_users_data()
-        else:
-            LOGGER.debug("---> Loaded data from users_storage: %s", users_data)
-            self._users_data = users_data
+        await self.load_data_users(hass)
+        await self.load_data_app_sessions(hass)
 
-        self._app_sessions_store = AppSessionsStore(
-            hass, STORAGE_VERSION_APP_SESSIONS, STORAGE_KEY_APP_SESSIONS
-        )
-        if (app_sessions_data := await self._app_sessions_store.async_load()) is None:
-            LOGGER.debug("---> Can't load data from app_sessions storage")
-            self._app_sessions_data = {}
-        else:
-            LOGGER.debug("---> Loaded data from app_sessions storage: %s", app_sessions_data)
-            self._app_sessions_data = app_sessions_data
+    async def load_data_users(self, hass):
+        with USERS_LOCK:
+            self._users_store = UsersStore(
+                hass, STORAGE_VERSION_USERS, STORAGE_KEY_USERS
+            )
+            if (users_data := await self._users_store.async_load()) is None:
+                LOGGER.debug("---> Can't load data from users_storage")
+            else:
+                LOGGER.debug("---> Loaded data from users_storage: %s", users_data)
+                self._users_data = users_data
+
+    async def load_data_app_sessions(self, hass):
+        with APP_SESSIONS_LOCK:
+            self._app_sessions_store = AppSessionsStore(
+                hass, STORAGE_VERSION_APP_SESSIONS, STORAGE_KEY_APP_SESSIONS
+            )
+            if (app_sessions_data := await self._app_sessions_store.async_load()) is None:
+                LOGGER.debug("---> Can't load data from app_sessions storage")
+                self._app_sessions_data = {}
+            else:
+                LOGGER.debug("---> Loaded data from app_sessions storage: %s", app_sessions_data)
+                self._app_sessions_data = app_sessions_data
+
 
     async def _save_users_data(self):
         await self._users_store.async_save(self._users_data)
-        LOGGER.debug("---> Saved users_data to users storage")
 
     async def _save_app_sessions_data(self):
         await self._app_sessions_store.async_save(self._app_sessions_data)
-        LOGGER.debug("---> Saved users_data to app_sessions storage")
 
     async def update_users_data(
             self,
@@ -173,13 +172,12 @@ class Storage:
             user_id: str,
             key: str
     ) -> tuple[str, str] | None:
-        with USERS_LOCK:
-            if not self._users_data.get(user_id):
-                return None
-            if not self._users_data[user_id].get(key):
-                return None
-            LOGGER.debug("---> Got users_data for user: %s, key: %s", user_id, key)
-            return self._users_data[user_id][key]['value'], self._users_data[user_id][key]['value_hash']
+        if not self._users_data.get(user_id):
+            return None
+        if not self._users_data[user_id].get(key):
+            return None
+        LOGGER.debug("---> Got users_data for user: %s, key: %s", user_id, key)
+        return self._users_data[user_id][key]['value'], self._users_data[user_id][key]['value_hash']
 
     async def update_app_session(
             self,
@@ -193,17 +191,198 @@ class Storage:
             self._app_sessions_data[app_session.id]['last_update'] = str(app_session.last_update)
             self._app_sessions_data[app_session.id]['push_token_hash'] = app_session.push_token_hash
             LOGGER.debug("---> Updated app_sessions_data for app_session: %s", app_session.id)
-        await self._save_app_sessions_data()
+            await self._save_app_sessions_data()
 
+    # Returns AppSession object, or None if not found
     def get_app_session(
             self,
             app_session_id: str
     ) -> AppSession | None:
-        with APP_SESSIONS_LOCK:
-            if not self._app_sessions_data.get(app_session_id):
-                return None
-            return AppSession.init_from_dict(app_session_id, self._app_sessions_data.get(app_session_id))
+        if not self._app_sessions_data.get(app_session_id):
+            return None
+        return AppSession.init_from_dict(app_session_id, self._app_sessions_data.get(app_session_id))
 
+    # Returns AppSession object, or None if not found
+    async def update_app_session_last_update(
+            self,
+            app_session_id: str
+    ):
+        with APP_SESSIONS_LOCK:
+            if self._app_sessions_data.get(app_session_id):
+                self._app_sessions_data[app_session_id]['last_update'] = str(datetime.now())
+                await self._save_app_sessions_data()
+
+    async def update_push_token(
+            self,
+            app_session_id: str,
+            push_session_id: str,
+            push_token_hash: str
+    ):
+        with APP_SESSIONS_LOCK:
+            if data := self._app_sessions_data.get(app_session_id):
+                data['push_session_id'] = push_session_id
+                data['push_token_hash'] = push_token_hash
+                await self._save_app_sessions_data()
+
+    async def remove_push_session(
+            self,
+            app_session_id: str,
+    ):
+        with APP_SESSIONS_LOCK:
+            if data := self._app_sessions_data.get(app_session_id):
+                data['push_session_id'] = ''
+                await self._save_app_sessions_data()
+
+    # Returns AppSession object, or None if not found
+    async def remove_app_session(
+            self,
+            app_session_id: str
+    ):
+        with APP_SESSIONS_LOCK:
+            if self._app_sessions_data.get(app_session_id):
+                self._app_sessions_data.pop(app_session_id)
+                await self._save_app_sessions_data()
+
+    # Remove all app_session records with given push_token
+    # except one given app_session_id
+    async def remove_app_sessions_with_push_token(self, push_token: str, except_app_session_id: str):
+        for app_session_id, data in self._app_sessions_data.items():
+            if app_session_id == except_app_session_id:
+                continue
+            if data.get("push_token_hash") == push_token:
+                await self.remove_app_session(app_session_id)
+
+    # Create AppSession object, or None if not found
+    async def create_app_session(
+            self,
+            user_id: str,
+            push_token_hash: str
+    ) -> str:
+        with APP_SESSIONS_LOCK:
+            new_id = str(uuid.uuid4())
+            self._app_sessions_data[new_id] = {}
+            self._app_sessions_data[new_id]['user_id'] = user_id
+            self._app_sessions_data[new_id]['push_session_id'] = None
+            self._app_sessions_data[new_id]['last_update'] = str(datetime.now())
+            self._app_sessions_data[new_id]['push_token_hash'] = push_token_hash
+            await self._save_app_sessions_data()
+            LOGGER.debug("---> create_app_session, Keys in app_sessions_data: %s", self._app_sessions_data.keys())
+            return new_id
+
+    # Updates all subscriptions for given app_session_id.
+    # Sets need_push=1 for all given subscriptions, and 0 for all others.
+    async def app_session_resubscribe_push(
+            self,
+            app_session_id: str,
+            subscriptions: dict[str, set[str]]
+    ):
+        with APP_SESSIONS_LOCK:
+            data = self._app_sessions_data.get(app_session_id)
+            if not data or not data.get("subscriptions"):
+                LOGGER.debug("---> app_session_resubscribe_push Can't update subscriptions for app_session_id: %s %s, "
+                             "data: %s",
+                             app_session_id, type(app_session_id), self._app_sessions_data)
+                return
+            LOGGER.debug("---> Subscriptions before update: %s",
+                         self._app_sessions_data[app_session_id]["subscriptions"])
+            subs: list[dict[str, str]] = data["subscriptions"]
+            for sub in subs:
+                entity_id = sub.get("entity_id")
+                if not entity_id:
+                    continue
+                if entity_id in subscriptions and sub.get("attribute") in subscriptions[entity_id]:
+                    sub["need_push"] = "1"
+                else:
+                    sub["need_push"] = "0"
+            LOGGER.debug("---> Subscriptions after update: %s",
+                         self._app_sessions_data[app_session_id]["subscriptions"])
+        await self._save_app_sessions_data()
+
+    # Removes all subscriptions for given app_session_id and creates new ones.
+    async def app_session_resubscribe(
+            self,
+            app_session_id: str,
+            subscriptions: dict[str, dict[str, int]]
+    ):
+        if not subscriptions:
+            LOGGER.error("app_session_resubscribe: got subscriptions == None")
+            return
+
+        with APP_SESSIONS_LOCK:
+            data = self._app_sessions_data.get(app_session_id)
+            if not data:
+                LOGGER.error("app_session_resubscribe: no record found for given app_session_id: %s", app_session_id)
+                return
+
+            new_subscriptions = []
+            for entity_id, atts in subscriptions.items():
+                if atts:
+                    for att, need_push in atts.items():
+                        new_subscriptions.append(
+                            {"entity_id": entity_id, "attribute": att, "need_push": str(need_push)}
+                        )
+            data["subscriptions"] = new_subscriptions
+            await self._save_app_sessions_data()
+
+
+    def get_app_session_ids_with_hash(self, push_token_hash: str) -> list[str]:
+        res: list[str] = []
+        for app_session_id, data in self._app_sessions_data.items():
+            if data.get('push_token_hash') == push_token_hash:
+                res.append(app_session_id)
+        return res
+
+    def get_app_session_subscriptions(
+            self,
+            app_session_id: str,
+            *,
+            need_push: bool | None = True,
+            entity_id: str | None = None,
+    ) -> list[Subscription]:
+        res: list[Subscription] = []
+        data: dict = self._app_sessions_data.get(app_session_id)
+        if data and data.get("subscriptions"):
+            subs = data.get("subscriptions")
+            for sub in subs:
+                if entity_id and sub.get('entity_id') != entity_id:
+                    continue
+                if need_push and bool(sub.get('need_push')) != need_push:
+                    continue
+                res.append(Subscription(sub.get('entity_id'), sub.get('attribute'), bool(sub.get('need_push'))))
+        return res
+
+    async def delete_inactive(self, threshold):
+        for app_session, data in self._app_sessions_data.items():
+            if not data.get('last_update'):
+                await self.update_app_session_last_update(app_session)
+            else:
+                lu = data.get('last_update')
+                try:
+                    dt = datetime.fromisoformat(lu)
+                    if datetime.now() - dt > threshold:
+                        await self.remove_app_session(app_session)
+                except ValueError:
+                    LOGGER.debug("Incorrect data format: %s", lu)
+                    await self.update_app_session_last_update(app_session)
+
+    async def inactive_device_cleaner(self) -> None:
+        """
+        Start new inactive device cleaner loop.
+        Periodically removes outdated devices.
+        """
+        LOGGER.debug("Inactive device cleaner started")
+        try:
+            while True:
+                try:
+                    await self.delete_inactive(
+                        DEVICE_INACTIVITY_TIME_THRESHOLD,
+                    )
+                except Exception:  # noqa: BLE001
+                    LOGGER.exception("Inactive device cleaner error")
+                await asyncio.sleep(DEVICE_INACTIVITY_CHECK_INTERVAL.total_seconds())
+        except asyncio.CancelledError as e:
+            LOGGER.debug("Inactive device cleaner stopped. %s", e)
+            raise
 
 
 

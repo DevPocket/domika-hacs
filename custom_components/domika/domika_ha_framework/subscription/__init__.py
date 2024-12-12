@@ -1,1 +1,0 @@
-"""User event subscriptions module."""

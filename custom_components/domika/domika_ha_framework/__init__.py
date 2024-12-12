@@ -1,1 +1,0 @@
-"""Domika homeassistant framework."""

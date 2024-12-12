@@ -15,8 +15,7 @@ from ..const import (
     SENSORS_DOMAIN,
     WARNING_NOTIFICATION_DEVICE_CLASSES,
 )
-from ..domika_ha_framework.database import core as database_core
-from ..domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..errors import DomikaFrameworkBaseError
 from .enums import NotificationType
 from .models import DomikaNotificationSensor, DomikaNotificationSensorsRead
 from ..storage.storage import STORAGE

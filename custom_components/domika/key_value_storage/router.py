@@ -2,7 +2,6 @@
 
 import contextlib
 from typing import Any, Tuple
-import uuid
 
 import voluptuous as vol
 
@@ -14,9 +13,7 @@ from homeassistant.components.websocket_api import (
 from homeassistant.core import HomeAssistant
 
 from ..const import LOGGER
-from ..domika_ha_framework.database import core as database_core
-from ..domika_ha_framework.device import service as device_service
-from ..domika_ha_framework.errors import DomikaFrameworkBaseError
+from ..errors import DomikaFrameworkBaseError
 from ..storage.storage import STORAGE
 
 
@@ -26,7 +23,7 @@ async def _store_value(
     value: str,
     value_hash: str,
     user_id: str,
-    app_session_id: uuid.UUID | None,
+    app_session_id: str | None,
 ) -> None:
     try:
         await STORAGE.update_users_data(user_id=user_id, key=key, value=value, value_hash=value_hash)
@@ -99,9 +96,9 @@ async def websocket_domika_store_value(
     value: str = msg.get("value", "")
     value_hash: str = msg.get("hash", "")
 
-    app_session_id: uuid.UUID | None = None
+    app_session_id: str | None = None
     with contextlib.suppress(TypeError):
-        app_session_id = uuid.UUID(msg.get("app_session_id"))
+        app_session_id = msg.get("app_session_id")
 
     await _store_value(hass, key, value, value_hash, connection.user.id, app_session_id)
 

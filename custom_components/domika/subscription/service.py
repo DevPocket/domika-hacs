@@ -3,7 +3,6 @@
 from collections.abc import Sequence
 from dataclasses import asdict
 from typing import overload
-import uuid
 
 import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
@@ -20,35 +19,6 @@ from .models import (
     SubscriptionMap,
 )
 
-
-async def get(
-    db_session: AsyncSession,
-    app_session_id: uuid.UUID,
-    *,
-    need_push: bool | None = True,
-    entity_id: str | None = None,
-) -> Sequence[Subscription]:
-    """
-    Get all subscriptions by application session id.
-
-    Subscriptions filtered by need_push flag. If need_push is None no filtering applied.
-
-    Raises:
-        errors.DatabaseError: in case when database operation can't be performed.
-    """
-    stmt = sqlalchemy.select(Subscription).where(
-        Subscription.app_session_id == app_session_id,
-    )
-    if need_push is not None:
-        stmt = stmt.where(Subscription.need_push == need_push)
-    if entity_id:
-        stmt = stmt.where(Subscription.entity_id == entity_id)
-    stmt = stmt.order_by(Subscription.entity_id).order_by(Subscription.attribute)
-
-    try:
-        return (await db_session.scalars(stmt)).all()
-    except SQLAlchemyError as e:
-        raise DatabaseError(str(e)) from e
 
 
 async def get_all(
@@ -209,7 +179,7 @@ async def update(
 
 async def update_in_place(
     db_session: AsyncSession,
-    app_session_id: uuid.UUID,
+    app_session_id: str,
     entity_id: str,
     attribute: str,
     subscription_in: DomikaSubscriptionUpdate,
@@ -243,7 +213,7 @@ async def update_in_place(
 
 async def delete(
     db_session: AsyncSession,
-    app_session_id: uuid.UUID,
+    app_session_id: str,
     *,
     commit: bool = True,
 ):

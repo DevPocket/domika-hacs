@@ -1,7 +1,6 @@
 """Push data service functions."""
 
 from collections.abc import Sequence
-import uuid
 
 import sqlalchemy
 from sqlalchemy import and_
@@ -16,7 +15,7 @@ from .models import DomikaPushDataCreate, DomikaPushDataUpdate, PushData, _Event
 
 async def get(
     db_session: AsyncSession,
-    event_id: uuid.UUID,
+    event_id: str,
 ) -> Sequence[PushData]:
     """
     Get push data by id.
@@ -178,8 +177,8 @@ async def update(
 
 async def delete(
     db_session: AsyncSession,
-    event_id: uuid.UUID | list[uuid.UUID],
-    app_session_id: uuid.UUID,
+    event_id: str | list[str],
+    app_session_id: str,
     *,
     commit: bool = True,
 ):
@@ -237,7 +236,7 @@ async def delete_all(
 
 async def delete_by_app_session_id(
     db_session: AsyncSession,
-    app_session_id: uuid.UUID | list[uuid.UUID],
+    app_session_id: str | list[str],
     *,
     commit: bool = True,
 ):
@@ -291,7 +290,7 @@ async def decrease_delay_all(
 
 async def delete_for_app_session(
     db_session: AsyncSession,
-    app_session_id: uuid.UUID,
+    app_session_id: str,
     *,
     commit: bool = True,
     entity_id: str | None = None,

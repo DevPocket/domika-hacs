@@ -12,7 +12,7 @@ from homeassistant.components.websocket_api import (
 from homeassistant.core import HomeAssistant, callback
 
 from ..const import LOGGER
-from ..domika_ha_framework.utils import flatten_json
+from ..utils import flatten_json
 from .service import get, get_single
 
 

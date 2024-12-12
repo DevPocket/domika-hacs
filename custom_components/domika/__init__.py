@@ -28,14 +28,10 @@ from .const import (
 from .critical_sensor import router as critical_sensor_router
 from .device import router as device_router
 from .storage import storage as storage
-from .domika_ha_framework import device, push_data
-from .domika_ha_framework.database import (
-    core as database_core,
-    manage as database_manage,
-)
 from .entity import router as entity_router
 from .ha_event import event_pusher, flow as ha_event_flow, router as ha_event_router
 from .key_value_storage import router as key_value_router
+from .storage.storage import STORAGE
 from .subscription import router as subscription_router
 
 if TYPE_CHECKING:
@@ -63,15 +59,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up a config entry."""
     LOGGER.debug("Entry loading")
 
-    # Init framework library.
-    try:
-        database_url = f"{DB_DIALECT}+{DB_DRIVER}:///{hass.config.path()}/{DB_NAME}"
-        await database_manage.migrate(database_url)
-        await database_core.init_db(database_url)
-    except Exception:  # noqa: BLE001
-        LOGGER.exception("Can't setup %s entry", DOMAIN)
-        return False
-
     # Update domain's critical_entities from options.
     if not hass.data.get(DOMAIN):
         hass.data[DOMAIN] = {}
@@ -93,7 +80,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Start inactive device cleaner background task.
     entry.async_create_background_task(
         hass,
-        device.inactive_device_cleaner(),
+        STORAGE.inactive_device_cleaner(),
         "inactive_device_cleaner",
     )
 

@@ -1,7 +1,6 @@
 """HA event router."""
 
 from typing import Any, cast
-import uuid
 
 import voluptuous as vol
 
@@ -13,16 +12,14 @@ from homeassistant.components.websocket_api import (
 from homeassistant.core import HomeAssistant
 
 from ..const import LOGGER
-from ..domika_ha_framework.database import core as database_core
-from ..domika_ha_framework.errors import DomikaFrameworkBaseError
-from ..domika_ha_framework.push_data import service as push_data_service
+from ..errors import DomikaFrameworkBaseError
 
 
 @websocket_command(
     {
         vol.Required("type"): "domika/confirm_event",
-        vol.Required("app_session_id"): vol.Coerce(uuid.UUID),
-        vol.Required("event_ids"): [vol.Coerce(uuid.UUID)],
+        vol.Required("app_session_id"): str,
+        vol.Required("event_ids"): [str],
     },
 )
 @async_response
@@ -43,13 +40,14 @@ async def websocket_domika_confirm_events(
     connection.send_result(msg_id, {"result": "accepted"})
     LOGGER.debug("Confirm_event msg_id=%s data=%s", msg_id, {"result": "accepted"})
 
-    event_ids = cast(list[uuid.UUID], msg.get("event_ids"))
+    event_ids = cast(list[str], msg.get("event_ids"))
     app_session_id = msg.get("app_session_id")
 
     if event_ids and app_session_id:
         try:
-            async with database_core.get_session() as session:
-                await push_data_service.delete(session, event_ids, app_session_id)
+            pass
+            # TODO STORAGE — rewrite
+            # await push_data_service.delete(event_ids, app_session_id)
         except DomikaFrameworkBaseError as e:
             LOGGER.error(
                 'Can\'t confirm events "%s". Framework error. %s',

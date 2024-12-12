@@ -1,7 +1,5 @@
 """Domika push server errors."""
 
-import uuid
-
 from .errors import DomikaFrameworkBaseError
 
 
@@ -36,7 +34,7 @@ class UnexpectedServerResponseError(DomikaPushServerError):
 class PushSessionIdNotFoundError(DomikaPushServerError):
     """Push session id found on the push server."""
 
-    def __init__(self, push_session_id: uuid.UUID):
+    def __init__(self, push_session_id: str):
         super().__init__(
             f'Push session with id "{push_session_id}" not found on the push server',
         )

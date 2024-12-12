@@ -7,8 +7,6 @@ import itertools
 from pathlib import Path
 from typing import TypeVar
 
-from .cache import CacheKey, cache_key
-
 T = TypeVar("T")
 
 
@@ -106,13 +104,3 @@ def chunks(iterable: Iterable[T], size: int) -> Generator[Iterator[T], None, Non
     for first in iterator:
         yield itertools.chain([first], itertools.islice(iterator, size - 1))
 
-
-def cache_key_ignore_first_arg(*args, **kwargs) -> CacheKey:
-    """
-    Generate cache key, ignoring first arg.
-
-    Returns:
-        Generated cache key.
-    """
-    args = args[1:]
-    return cache_key(*args, **kwargs)

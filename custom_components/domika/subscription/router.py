@@ -1,7 +1,6 @@
 """Subscription data router."""
 
 from typing import Any, cast
-import uuid
 
 import voluptuous as vol
 
@@ -13,17 +12,15 @@ from homeassistant.components.websocket_api import (
 from homeassistant.core import HomeAssistant
 
 from ..const import LOGGER
-from ..domika_ha_framework.database import core as database_core
-from ..domika_ha_framework.errors import DomikaFrameworkBaseError
-from ..domika_ha_framework.push_data import service as push_data_service
-from ..domika_ha_framework.subscription import flow as subscription_flow
-from ..domika_ha_framework.utils import flatten_json
+from ..storage.storage import STORAGE
+from ..errors import DomikaFrameworkBaseError
+from ..utils import flatten_json
 
 
 @websocket_command(
     {
         vol.Required("type"): "domika/resubscribe",
-        vol.Required("app_session_id"): vol.Coerce(uuid.UUID),
+        vol.Required("app_session_id"): str,
         vol.Required("subscriptions"): dict[str, set],
     },
 )
@@ -40,7 +37,7 @@ async def websocket_domika_resubscribe(
         return
 
     LOGGER.debug('Got websocket message "resubscribe", data: %s', msg)
-    app_session_id = cast(uuid.UUID, msg.get("app_session_id"))
+    app_session_id = msg.get("app_session_id")
 
     res_list = []
     subscriptions = cast(dict[str, dict[str, int]], msg.get("subscriptions"))
@@ -67,11 +64,12 @@ async def websocket_domika_resubscribe(
 
     try:
         async with database_core.get_session() as session:
-            await subscription_flow.resubscribe(session, app_session_id, subscriptions)
-            await push_data_service.delete_for_app_session(
-                session,
-                app_session_id=app_session_id,
-            )
+            await STORAGE.app_session_resubscribe(app_session_id, subscriptions)
+            # TODO STORAGE: replace with push_data storage
+            # await push_data_service.delete_for_app_session(
+            #     session,
+            #     app_session_id=app_session_id,
+            # )
 
     except DomikaFrameworkBaseError as e:
         LOGGER.error('Can\'t resubscribe "%s". Framework error. %s', subscriptions, e)

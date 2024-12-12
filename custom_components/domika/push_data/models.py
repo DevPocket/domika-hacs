@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass, field
 from typing import Any
-import uuid
 
 from mashumaro import pass_through
 from mashumaro.config import BaseConfig
@@ -18,7 +17,7 @@ class PushData(AsyncBase):
 
     __tablename__ = "push_data"
 
-    event_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    event_id: Mapped[str] = mapped_column(primary_key=True)
     app_session_id: Mapped[str] = mapped_column(
         ForeignKey("devices.app_session_id", ondelete="CASCADE", onupdate="CASCADE"),
         primary_key=True,
@@ -36,7 +35,7 @@ class _Event(AsyncBase):
 
     __tablename__ = "events"
 
-    event_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    event_id: Mapped[str] = mapped_column(primary_key=True)
     entity_id: Mapped[str] = mapped_column(primary_key=True)
     attribute: Mapped[str] = mapped_column(primary_key=True)
     value: Mapped[str]
@@ -49,7 +48,7 @@ class _Event(AsyncBase):
 class DomikaPushDataBase(DataClassJSONMixin):
     """Base event model."""
 
-    event_id: uuid.UUID = field(
+    event_id: str = field(
         metadata={
             "serialization_strategy": pass_through,
         },
@@ -84,7 +83,7 @@ class DomikaPushDataUpdate(DataClassJSONMixin):
 class DomikaPushedEvents(DataClassJSONMixin):
     """Pushed events' config."""
 
-    push_session_id: uuid.UUID = field(
+    push_session_id: str = field(
         metadata={
             "serialization_strategy": pass_through,
         },

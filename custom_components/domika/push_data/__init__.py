@@ -3,7 +3,6 @@
 import asyncio
 import contextlib
 import datetime
-import uuid
 
 from custom_components.domika.const import LOGGER
 
@@ -23,7 +22,7 @@ STORE_CHUNK_SIZE = 500
 
 async def _process_pushed_data_once(
     events_queue_: asyncio.Queue[DomikaPushDataCreate],
-    confirmed_events_queue_: asyncio.Queue[uuid.UUID],
+    confirmed_events_queue_: asyncio.Queue[str],
     threshold: int,
     store_chunk_size: int,
 ):
@@ -97,7 +96,7 @@ async def _process_pushed_data_once(
 
 async def pushed_data_processor(
     events_queue_: asyncio.Queue[DomikaPushDataCreate] = events_queue,
-    confirmed_events_queue_: asyncio.Queue[uuid.UUID] = confirmed_events_queue,
+    confirmed_events_queue_: asyncio.Queue[str] = confirmed_events_queue,
     interval: float = INTERVAL,
     threshold: int = THRESHOLD,
     store_chunk_size: int = STORE_CHUNK_SIZE,

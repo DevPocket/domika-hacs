@@ -1,7 +1,6 @@
 """Push data flow functions."""
 
 import json
-import uuid
 
 import aiohttp
 from aiohttp import ClientTimeout
@@ -11,15 +10,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from custom_components.domika.const import LOGGER
 
 from .. import push_server_errors, statuses
-from ..database import core as database_core
 from ..device import service as device_service
 from ..device.models import Device, DomikaDeviceUpdate
 from . import confirmed_events_queue, events_queue
 from .models import DomikaPushDataCreate, DomikaPushedEvents, PushData
 from .service import decrease_delay_all, delete_by_app_session_id
+from ...storage.storage import STORAGE
 
 
-async def confirm_event(event_ids: list[uuid.UUID]) -> None:
+async def confirm_event(event_ids: list[str]) -> None:
     """
     Confirm that event is fully processed by the application.
 
@@ -143,11 +142,11 @@ async def push_registered_events(
     # '     }
     # '  },
     # '}
-    app_sessions_ids_to_delete_list: list[uuid.UUID] = []
+    app_sessions_ids_to_delete_list: list[str] = []
     events_dict = {}
     current_entity_id: str | None = None
-    current_push_session_id: uuid.UUID | None = None
-    current_app_session_id: uuid.UUID | None = None
+    current_push_session_id: str | None = None
+    current_app_session_id: str | None = None
     found_delay_zero: bool = False
 
     entity = {}
@@ -210,12 +209,12 @@ async def push_registered_events(
 
 async def _clear_push_session_id(
     db_session: AsyncSession,
-    app_session_id: uuid.UUID,
-    push_session_id: uuid.UUID,
+    app_session_id: str,
+    push_session_id: str,
 ) -> None:
     # Push session id not found on push server.
     # Remove push session id for device.
-    device = await device_service.get(db_session, app_session_id)
+    device = STORAGE.get_app_session(app_session_id)
     if device:
         LOGGER.debug(
             'The server rejected push session id "%s"',
@@ -238,8 +237,8 @@ async def _send_push_data(
     http_session: aiohttp.ClientSession,
     push_server_url: str,
     push_server_timeout: ClientTimeout,
-    app_session_id: uuid.UUID,
-    push_session_id: uuid.UUID,
+    app_session_id: str,
+    push_session_id: str,
     critical_alert_payload: dict,
     *,
     critical: bool = False,

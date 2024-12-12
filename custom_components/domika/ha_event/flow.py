@@ -26,15 +26,14 @@ from ..const import (
 )
 from ..critical_sensor import service as critical_sensor_service
 from ..critical_sensor.enums import NotificationType
-from ..domika_ha_framework.database import core as database_core
-from ..domika_ha_framework.errors import DatabaseError, DomikaFrameworkBaseError
-from ..domika_ha_framework.push_data import flow as push_data_flow
-from ..domika_ha_framework.push_data.models import (
+from ..errors import DomikaFrameworkBaseError
+from ..push_data import flow as push_data_flow
+from ..push_data.models import (
     DomikaPushDataCreate,
     DomikaPushedEvents,
 )
-from ..domika_ha_framework.subscription import flow as subscription_flow
-from ..domika_ha_framework.utils import flatten_json
+from ..subscription import flow as subscription_flow
+from ..utils import flatten_json
 
 
 async def register_event(
@@ -73,7 +72,7 @@ async def register_event(
         )
 
     # Store events into db.
-    event_id = uuid.uuid4()
+    event_id = str(uuid.uuid4())
     delay = await _get_delay_by_entity_id(hass, entity_id)
     events = [
         DomikaPushDataCreate(
@@ -268,10 +267,10 @@ def _fire_critical_sensor_notification(
 def _fire_event_to_app_session_ids(
     hass: HomeAssistant,
     event: Event[EventStateChangedData],
-    event_id: uuid.UUID,
+    event_id: str,
     entity_id: str,
     attributes: set[tuple],
-    app_session_ids: Iterable[uuid.UUID],
+    app_session_ids: Iterable[str],
 ) -> None:
     dict_attributes = dict(attributes)
     dict_attributes["d.type"] = "state_changed"
