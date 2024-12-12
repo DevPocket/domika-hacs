@@ -1,12 +1,12 @@
-"""Application device flow functions."""
+"""Application sessions flow functions."""
 
 import json
 
 import aiohttp
-from custom_components.domika.const import LOGGER
+from ..const import LOGGER
 
 from .. import errors, push_server_errors, statuses
-from custom_components.domika.storage.storage import STORAGE
+from ..storage.storage import STORAGE
 
 
 async def remove_push_session(
@@ -149,7 +149,7 @@ async def verify_push_session(
     """
     Finishes push session generation.
 
-    After successful generation store new push session id for device with given
+    After successful generation store new push session id for sessions with given
     app_session_id.
 
     Args:
@@ -197,7 +197,7 @@ async def verify_push_session(
                     msg = "Malformed push_session_id."
                     raise push_server_errors.ResponseError(msg) from None
                 # Remove Devices with the same push_token_hash (if not empty), except
-                # current device.
+                # current sessions.
                 if push_token_hash:
                     await STORAGE.remove_app_sessions_with_push_token(
                         push_token_hash,

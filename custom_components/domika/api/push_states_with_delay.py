@@ -10,7 +10,8 @@ from homeassistant.core import async_get_hass
 from homeassistant.helpers.http import HomeAssistantView
 
 from ..const import DOMAIN, LOGGER
-from .service import *
+from . import service as api_service
+from ..push_data.pushdatastorage import PUSHDATA_STORAGE
 
 
 class DomikaAPIPushStatesWithDelay(HomeAssistantView):
@@ -48,18 +49,13 @@ class DomikaAPIPushStatesWithDelay(HomeAssistantView):
 
         await asyncio.sleep(delay)
 
-        result = await get(
+        PUSHDATA_STORAGE.remove_by_app_session_id(app_session_id=app_session_id, entity_id=entity_id)
+
+        result = await api_service.get(
             app_session_id,
             need_push=need_push,
             entity_id=entity_id,
         )
-        # TODO STORAGE — rewrite
-        # await push_data_service.delete_for_app_session(
-        #     session,
-        #     app_session_id=app_session_id,
-        #     entity_id=entity_id,
-        # )
-
 
         data = {"entities": result}
         LOGGER.debug("DomikaAPIPushStatesWithDelay data: %s", data)

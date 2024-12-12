@@ -1,4 +1,5 @@
 """HA entity service."""
+from dataclasses import dataclass
 
 from homeassistant.core import async_get_hass
 
@@ -7,16 +8,12 @@ from ..utils import flatten_json
 from ..storage.storage import STORAGE
 
 
+@dataclass
 class DomikaHaEntity:
     """Base homeassistant entity state model."""
     entity_id: str
     time_updated: float
     attributes: dict[str, str]
-
-    def __init__(self, entity_id, time_updated, attributes):
-        self.entity_id = entity_id
-        self.time_updated = time_updated
-        self.attributes = attributes
 
 
 async def get(
@@ -30,6 +27,8 @@ async def get(
 
     Get the attribute state of all entities from the subscription for the given
     app_session_id.
+
+    Filter by entity_id if passed and not None
     """
     result: list[DomikaHaEntity] = []
 

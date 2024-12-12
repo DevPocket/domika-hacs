@@ -40,7 +40,7 @@ class DomikaAPIPushResubscribe(HomeAssistantView):
             app_session_id,
         )
 
-        subscriptions: dict[str, set[str]] | None = request_dict.get("subscriptions")
+        subscriptions: dict[str, set[str]] = request_dict.get("subscriptions", {})
         if not subscriptions:
             return self.json_message(
                 "Missing or malformed subscriptions.",

@@ -2,18 +2,14 @@
 
 from dataclasses import dataclass
 
-from mashumaro.mixins.json import DataClassJSONMixin
-
 
 @dataclass
-class DomikaEntitiesList(DataClassJSONMixin):
+class DomikaEntitiesList():
     """Entities data: name, related ids and capabilities."""
-
     entities: dict
 
 
 @dataclass
-class DomikaEntityInfo(DataClassJSONMixin):
+class DomikaEntityInfo():
     """Entity data: name, related ids and capabilities."""
-
     info: dict

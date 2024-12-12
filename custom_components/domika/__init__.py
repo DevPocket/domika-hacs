@@ -26,7 +26,7 @@ from .const import (
     PUSH_SERVER_URL
 )
 from .critical_sensor import router as critical_sensor_router
-from .device import router as device_router
+from .sessions import router as device_router
 from .storage import storage as storage
 from .entity import router as entity_router
 from .ha_event import event_pusher, flow as ha_event_flow, router as ha_event_router
@@ -77,7 +77,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "pushed_data_processor",
     )
 
-    # Start inactive device cleaner background task.
+    # Start inactive sessions cleaner background task.
     entry.async_create_background_task(
         hass,
         STORAGE.inactive_device_cleaner(),

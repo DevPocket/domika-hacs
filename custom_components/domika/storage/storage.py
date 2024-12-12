@@ -6,13 +6,11 @@ import asyncio
 import threading
 import uuid
 from datetime import datetime
+from typing import Any
 
-import sqlalchemy
+from .models import AppSession, Subscription
 from homeassistant.helpers.storage import Store
-from sqlalchemy.exc import SQLAlchemyError
-
 from ..const import DOMAIN, LOGGER, DEVICE_INACTIVITY_TIME_THRESHOLD, DEVICE_INACTIVITY_CHECK_INTERVAL
-from .models import *
 
 STORAGE_VERSION_USERS = 1
 STORAGE_VERSION_APP_SESSIONS = 1
@@ -76,40 +74,7 @@ class AppSessionsStore(Store[dict[str, Any]]):
         return old_data  # type: ignore[return-value]
 
 
-class AppSession:
-    id: str
-    user_id: str
-    push_session_id: str
-    last_update: datetime
-    push_token_hash: str
 
-    def __init__(self, id, user_id, push_session_id, last_update, push_token_hash):
-        self.id = id
-        self.user_id = user_id
-        self.push_session_id = push_session_id
-        self.last_update = last_update
-        self.push_token_hash = push_token_hash
-
-    @staticmethod
-    def init_from_dict(app_session_id: str, d: dict):
-        return AppSession(
-            id=app_session_id,
-            user_id=d.get("user_id"),
-            push_session_id=d.get("push_session_id"),
-            last_update=d.get("last_update"),
-            push_token_hash=d.get("push_token_hash")
-        )
-
-
-class Subscription:
-    entity_id: str
-    attribute: str
-    need_push: bool
-
-    def __init__(self, entity_id, attribute, need_push):
-        self.entity_id = entity_id
-        self.attribute = attribute
-        self.need_push = need_push
 
 
 class Storage:
@@ -179,19 +144,19 @@ class Storage:
         LOGGER.debug("---> Got users_data for user: %s, key: %s", user_id, key)
         return self._users_data[user_id][key]['value'], self._users_data[user_id][key]['value_hash']
 
-    async def update_app_session(
-            self,
-            app_session: AppSession
-    ):
-        with APP_SESSIONS_LOCK:
-            if not self._app_sessions_data.get(app_session.id):
-                self._app_sessions_data[app_session.id] = {}
-            self._app_sessions_data[app_session.id]['user_id'] = app_session.user_id
-            self._app_sessions_data[app_session.id]['push_session_id'] = app_session.push_session_id
-            self._app_sessions_data[app_session.id]['last_update'] = str(app_session.last_update)
-            self._app_sessions_data[app_session.id]['push_token_hash'] = app_session.push_token_hash
-            LOGGER.debug("---> Updated app_sessions_data for app_session: %s", app_session.id)
-            await self._save_app_sessions_data()
+    # async def update_app_session(
+    #         self,
+    #         app_session: AppSession
+    # ):
+    #     with APP_SESSIONS_LOCK:
+    #         if not self._app_sessions_data.get(app_session.id):
+    #             self._app_sessions_data[app_session.id] = {}
+    #         self._app_sessions_data[app_session.id]['user_id'] = app_session.user_id
+    #         self._app_sessions_data[app_session.id]['push_session_id'] = app_session.push_session_id
+    #         self._app_sessions_data[app_session.id]['last_update'] = int(app_session.last_update)
+    #         self._app_sessions_data[app_session.id]['push_token_hash'] = app_session.push_token_hash
+    #         LOGGER.debug("---> Updated app_sessions_data for app_session: %s", app_session.id)
+    #         await self._save_app_sessions_data()
 
     # Returns AppSession object, or None if not found
     def get_app_session(
@@ -209,7 +174,7 @@ class Storage:
     ):
         with APP_SESSIONS_LOCK:
             if self._app_sessions_data.get(app_session_id):
-                self._app_sessions_data[app_session_id]['last_update'] = str(datetime.now())
+                self._app_sessions_data[app_session_id]['last_update'] = int(datetime.now().timestamp())
                 await self._save_app_sessions_data()
 
     async def update_push_token(
@@ -252,7 +217,7 @@ class Storage:
             if data.get("push_token_hash") == push_token:
                 await self.remove_app_session(app_session_id)
 
-    # Create AppSession object, or None if not found
+    # Create AppSession object
     async def create_app_session(
             self,
             user_id: str,
@@ -263,10 +228,9 @@ class Storage:
             self._app_sessions_data[new_id] = {}
             self._app_sessions_data[new_id]['user_id'] = user_id
             self._app_sessions_data[new_id]['push_session_id'] = None
-            self._app_sessions_data[new_id]['last_update'] = str(datetime.now())
+            self._app_sessions_data[new_id]['last_update'] = int(datetime.now().timestamp())
             self._app_sessions_data[new_id]['push_token_hash'] = push_token_hash
             await self._save_app_sessions_data()
-            LOGGER.debug("---> create_app_session, Keys in app_sessions_data: %s", self._app_sessions_data.keys())
             return new_id
 
     # Updates all subscriptions for given app_session_id.
@@ -356,21 +320,21 @@ class Storage:
             if not data.get('last_update'):
                 await self.update_app_session_last_update(app_session)
             else:
-                lu = data.get('last_update')
+                lust_update_int = data.get('last_update')
                 try:
-                    dt = datetime.fromisoformat(lu)
-                    if datetime.now() - dt > threshold:
+                    lust_update = datetime.fromtimestamp(lust_update_int)
+                    if datetime.now() - lust_update > threshold:
                         await self.remove_app_session(app_session)
                 except ValueError:
-                    LOGGER.debug("Incorrect data format: %s", lu)
+                    LOGGER.debug("Incorrect data format: %s", lust_update_int)
                     await self.update_app_session_last_update(app_session)
 
     async def inactive_device_cleaner(self) -> None:
         """
-        Start new inactive device cleaner loop.
+        Start new inactive sessions cleaner loop.
         Periodically removes outdated devices.
         """
-        LOGGER.debug("Inactive device cleaner started")
+        LOGGER.debug("Inactive sessions cleaner started")
         try:
             while True:
                 try:
@@ -378,10 +342,10 @@ class Storage:
                         DEVICE_INACTIVITY_TIME_THRESHOLD,
                     )
                 except Exception:  # noqa: BLE001
-                    LOGGER.exception("Inactive device cleaner error")
+                    LOGGER.exception("Inactive sessions cleaner error")
                 await asyncio.sleep(DEVICE_INACTIVITY_CHECK_INTERVAL.total_seconds())
         except asyncio.CancelledError as e:
-            LOGGER.debug("Inactive device cleaner stopped. %s", e)
+            LOGGER.debug("Inactive sessions cleaner stopped. %s", e)
             raise
 
 

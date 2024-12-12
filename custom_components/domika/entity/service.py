@@ -28,8 +28,8 @@ from .models import DomikaEntitiesList, DomikaEntityInfo
 def _related(hass: HomeAssistant, root_entity_id: str) -> set[str]:
     searcher = Searcher(hass, hass_entity.entity_sources(hass))
     related_devices = searcher.async_search(ItemType.ENTITY, root_entity_id)
-    if related_devices and "device" in related_devices:
-        related_device_id = related_devices["device"].pop()
+    if related_devices and "sessions" in related_devices:
+        related_device_id = related_devices["sessions"].pop()
         related_entities = searcher.async_search(ItemType.DEVICE, related_device_id)
         if related_entities and "entity" in related_entities:
             return related_entities["entity"]
@@ -180,8 +180,8 @@ def _related_area(hass: HomeAssistant, entity_id: str) -> str:
 
         searcher = Searcher(hass, hass_entity.entity_sources(hass))
         related_devices = searcher.async_search(ItemType.ENTITY, entity_id)
-        if related_devices and "device" in related_devices:
-            related_device_id = related_devices["device"].pop()
+        if related_devices and "sessions" in related_devices:
+            related_device_id = related_devices["sessions"].pop()
             if device_entry := dr.async_get(hass).async_get(related_device_id):
                 return device_entry.area_id or ""
     return ""

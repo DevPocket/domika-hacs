@@ -7,15 +7,13 @@ from aiohttp import ClientTimeout
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from custom_components.domika.const import LOGGER
+from ..const import LOGGER
 
 from .. import push_server_errors, statuses
-from ..device import service as device_service
-from ..device.models import Device, DomikaDeviceUpdate
 from . import confirmed_events_queue, events_queue
-from .models import DomikaPushDataCreate, DomikaPushedEvents, PushData
+from .models import PushData
 from .service import decrease_delay_all, delete_by_app_session_id
-from ...storage.storage import STORAGE
+from ..storage.storage import STORAGE
 
 
 async def confirm_event(event_ids: list[str]) -> None:
@@ -213,7 +211,7 @@ async def _clear_push_session_id(
     push_session_id: str,
 ) -> None:
     # Push session id not found on push server.
-    # Remove push session id for device.
+    # Remove push session id for sessions.
     device = STORAGE.get_app_session(app_session_id)
     if device:
         LOGGER.debug(

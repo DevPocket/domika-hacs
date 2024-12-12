@@ -4,13 +4,10 @@ import asyncio
 import contextlib
 import datetime
 
-from custom_components.domika.const import LOGGER
+from ..const import LOGGER
 
-from ..database import core as database_core
-from ..errors import DatabaseError
 from ..utils import chunks
 from . import service as push_data_service
-from .models import DomikaPushDataCreate
 
 events_queue = asyncio.Queue(maxsize=5000)
 confirmed_events_queue = asyncio.Queue(maxsize=5000)

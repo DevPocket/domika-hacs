@@ -1,4 +1,4 @@
-"""Application device router."""
+"""Application sessions router."""
 
 from typing import TYPE_CHECKING, Any, cast
 
@@ -24,7 +24,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from ..const import DOMAIN, LOGGER, PUSH_SERVER_TIMEOUT, PUSH_SERVER_URL
 from ..storage.storage import STORAGE
 from .. import errors, push_server_errors
-from . import flow as device_flow
+from . import flow as sessions_flow
 
 if TYPE_CHECKING:
     from hass_nabucasa import Cloud
@@ -142,7 +142,7 @@ async def websocket_domika_update_app_session(
         LOGGER.info('Successfully updated app session id "%s"', app_session_id)
 
         result = {
-            "app_session_id": str(app_session_id),
+            "app_session_id": app_session_id,
             "old_app_session_ids": old_app_session_ids,
         }
         result.update(await _get_hass_network_properties(hass))
@@ -165,7 +165,7 @@ async def _update_app_session(
             new_app_session_id = app_session_id
             await STORAGE.update_app_session_last_update(app_session_id)
         else:
-            LOGGER.debug(
+            LOGGER.error(
                 "_update_app_session user_id mismatch: got %s, in storage: %s.",
                 user_id,
                 app_session.user_id,
@@ -195,10 +195,10 @@ async def _check_push_token(
         app_session_id: str,
         push_token_hash: str,
 ) -> None:
-    app_session_data = STORAGE.get_app_session(app_session_id)
+    app_session = STORAGE.get_app_session(app_session_id)
 
-    if app_session_data:
-        if app_session_data.push_session_id and app_session_data.push_token_hash == push_token_hash:
+    if app_session:
+        if app_session.push_session_id and app_session.push_token_hash == push_token_hash:
             event_result = {
                 "d.type": "push_activation",
                 "push_activation_success": True,
@@ -279,7 +279,7 @@ async def _remove_push_session(hass: HomeAssistant, app_session_id: str) -> None
         return
 
     try:
-        push_session_id = await device_flow.remove_push_session(
+        push_session_id = await sessions_flow.remove_push_session(
             async_get_clientsession(hass),
             app_session_id,
             push_server_url,
@@ -366,7 +366,7 @@ async def _create_push_session(
         return
 
     try:
-        await device_flow.create_push_session(
+        await sessions_flow.create_push_session(
             async_get_clientsession(hass),
             original_transaction_id,
             platform,
@@ -486,7 +486,7 @@ async def _remove_app_session(hass: HomeAssistant, app_session_id: str) -> None:
         return
 
     try:
-        push_session_id = await device_flow.remove_push_session(
+        push_session_id = await sessions_flow.remove_push_session(
             async_get_clientsession(hass),
             app_session_id,
             push_server_url,
@@ -579,7 +579,7 @@ async def _verify_push_session(
         return
 
     try:
-        push_session_id = await device_flow.verify_push_session(
+        push_session_id = await sessions_flow.verify_push_session(
             async_get_clientsession(hass),
             app_session_id,
             verification_key,

@@ -10,7 +10,8 @@ from homeassistant.core import async_get_hass
 from homeassistant.helpers.json import json_bytes
 
 from ..const import DOMAIN, LOGGER
-from .service import *
+from . import service as api_service
+from ..push_data.pushdatastorage import PUSHDATA_STORAGE
 
 
 class DomikaAPIDomainServicesView(APIDomainServicesView):
@@ -54,12 +55,9 @@ class DomikaAPIDomainServicesView(APIDomainServicesView):
 
         await asyncio.sleep(delay)
 
-        result = await get(app_session_id)
-        # TODO STORAGE — rewrite
-        # await push_data_service.delete_for_app_session(
-        #     session,
-        #     app_session_id=app_session_id,
-        # )
+        PUSHDATA_STORAGE.remove_by_app_session_id(app_session_id=app_session_id)
+
+        result = await api_service.get(app_session_id)
 
         LOGGER.debug("DomikaAPIDomainServicesView data: %s", {"entities": result})
         data = json_bytes({"entities": result})
