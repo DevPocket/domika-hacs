@@ -2,10 +2,6 @@
 
 from contextlib import suppress
 
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from ..errors import DatabaseError
 from .models import DomikaSubscriptionCreate, DomikaSubscriptionUpdate
 from .service import create, delete, get_subscription_map, update_in_place
 

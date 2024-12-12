@@ -1,6 +1,5 @@
 """Application key_value storage router."""
 
-import contextlib
 from typing import Any, Tuple
 
 import voluptuous as vol
@@ -27,13 +26,12 @@ async def _store_value(
 ) -> None:
     try:
         await STORAGE.update_users_data(user_id=user_id, key=key, value=value, value_hash=value_hash)
-        async with database_core.get_session() as session:
-            devices = await device_service.get_by_user_id(session, user_id)
+        app_session_ids = STORAGE.get_app_session_ids_by_user_id(user_id)
 
-        for device in devices:
-            if device.app_session_id != app_session_id:
+        for app_session in app_session_ids:
+            if app_session != app_session_id:
                 hass.bus.async_fire(
-                    f"domika_{device.app_session_id}",
+                    f"domika_{app_session}",
                     {
                         "d.type": "key_value_update",
                         "key": key,
@@ -96,10 +94,7 @@ async def websocket_domika_store_value(
     value: str = msg.get("value", "")
     value_hash: str = msg.get("hash", "")
 
-    app_session_id: str | None = None
-    with contextlib.suppress(TypeError):
-        app_session_id = msg.get("app_session_id")
-
+    app_session_id: str | None = msg.get("app_session_id")
     await _store_value(hass, key, value, value_hash, connection.user.id, app_session_id)
 
 

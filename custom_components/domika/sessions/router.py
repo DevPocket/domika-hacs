@@ -526,6 +526,7 @@ async def _remove_app_session(hass: HomeAssistant, app_session_id: str) -> None:
     except Exception:  # noqa: BLE001
         LOGGER.exception("Can't remove app session. Unhandled error")
 
+
 @websocket_command(
     {
         vol.Required("type"): "domika/remove_app_session",

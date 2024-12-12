@@ -74,9 +74,6 @@ class AppSessionsStore(Store[dict[str, Any]]):
         return old_data  # type: ignore[return-value]
 
 
-
-
-
 class Storage:
     def __init__(self):
         self._users_store = None
@@ -111,7 +108,6 @@ class Storage:
                 LOGGER.debug("---> Loaded data from app_sessions storage: %s", app_sessions_data)
                 self._app_sessions_data = app_sessions_data
 
-
     async def _save_users_data(self):
         await self._users_store.async_save(self._users_data)
 
@@ -143,20 +139,6 @@ class Storage:
             return None
         LOGGER.debug("---> Got users_data for user: %s, key: %s", user_id, key)
         return self._users_data[user_id][key]['value'], self._users_data[user_id][key]['value_hash']
-
-    # async def update_app_session(
-    #         self,
-    #         app_session: AppSession
-    # ):
-    #     with APP_SESSIONS_LOCK:
-    #         if not self._app_sessions_data.get(app_session.id):
-    #             self._app_sessions_data[app_session.id] = {}
-    #         self._app_sessions_data[app_session.id]['user_id'] = app_session.user_id
-    #         self._app_sessions_data[app_session.id]['push_session_id'] = app_session.push_session_id
-    #         self._app_sessions_data[app_session.id]['last_update'] = int(app_session.last_update)
-    #         self._app_sessions_data[app_session.id]['push_token_hash'] = app_session.push_token_hash
-    #         LOGGER.debug("---> Updated app_sessions_data for app_session: %s", app_session.id)
-    #         await self._save_app_sessions_data()
 
     # Returns AppSession object, or None if not found
     def get_app_session(
@@ -233,7 +215,7 @@ class Storage:
             await self._save_app_sessions_data()
             return new_id
 
-    # Updates all subscriptions for given app_session_id.
+    # Updates all subscriptions for the given app_session_id.
     # Sets need_push=1 for all given subscriptions, and 0 for all others.
     async def app_session_resubscribe_push(
             self,
@@ -242,59 +224,69 @@ class Storage:
     ):
         with APP_SESSIONS_LOCK:
             data = self._app_sessions_data.get(app_session_id)
+
             if not data or not data.get("subscriptions"):
-                LOGGER.debug("---> app_session_resubscribe_push Can't update subscriptions for app_session_id: %s %s, "
-                             "data: %s",
-                             app_session_id, type(app_session_id), self._app_sessions_data)
+                LOGGER.debug(
+                    "app_session_resubscribe_push: Can't update subscriptions for app_session_id: %s data: %s",
+                    app_session_id, self._app_sessions_data
+                )
                 return
-            LOGGER.debug("---> Subscriptions before update: %s",
-                         self._app_sessions_data[app_session_id]["subscriptions"])
-            subs: list[dict[str, str]] = data["subscriptions"]
-            for sub in subs:
+
+            current_subs = data["subscriptions"]
+
+            # Update subscriptions with appropriate need_push values
+            for sub in current_subs:
                 entity_id = sub.get("entity_id")
-                if not entity_id:
-                    continue
-                if entity_id in subscriptions and sub.get("attribute") in subscriptions[entity_id]:
-                    sub["need_push"] = "1"
-                else:
-                    sub["need_push"] = "0"
-            LOGGER.debug("---> Subscriptions after update: %s",
-                         self._app_sessions_data[app_session_id]["subscriptions"])
+                attribute = sub.get("attribute")
+
+                if entity_id and attribute:
+                    sub["need_push"] = "1" if entity_id in subscriptions and attribute in subscriptions[
+                        entity_id] else "0"
+
+        # Save the updated data
         await self._save_app_sessions_data()
 
-    # Removes all subscriptions for given app_session_id and creates new ones.
+    # Removes all subscriptions for the given app_session_id and creates new ones.
     async def app_session_resubscribe(
             self,
             app_session_id: str,
             subscriptions: dict[str, dict[str, int]]
     ):
         if not subscriptions:
-            LOGGER.error("app_session_resubscribe: got subscriptions == None")
+            LOGGER.error("app_session_resubscribe: Received empty or None subscriptions.")
             return
 
         with APP_SESSIONS_LOCK:
             data = self._app_sessions_data.get(app_session_id)
             if not data:
-                LOGGER.error("app_session_resubscribe: no record found for given app_session_id: %s", app_session_id)
+                LOGGER.error("app_session_resubscribe: No record found for app_session_id: %s", app_session_id)
                 return
 
-            new_subscriptions = []
-            for entity_id, atts in subscriptions.items():
-                if atts:
-                    for att, need_push in atts.items():
-                        new_subscriptions.append(
-                            {"entity_id": entity_id, "attribute": att, "need_push": str(need_push)}
-                        )
+            # Create new subscriptions
+            new_subscriptions = [
+                {"entity_id": entity_id, "attribute": att, "need_push": str(need_push)}
+                for entity_id, atts in subscriptions.items()
+                if atts
+                for att, need_push in atts.items()
+            ]
+
+            # Update the data and save
             data["subscriptions"] = new_subscriptions
             await self._save_app_sessions_data()
 
-
     def get_app_session_ids_with_hash(self, push_token_hash: str) -> list[str]:
-        res: list[str] = []
-        for app_session_id, data in self._app_sessions_data.items():
-            if data.get('push_token_hash') == push_token_hash:
-                res.append(app_session_id)
-        return res
+        return [
+            app_session_id
+            for app_session_id, data in self._app_sessions_data.items()
+            if data.get('push_token_hash') == push_token_hash
+        ]
+
+    def get_app_session_ids_by_user_id(self, user_id: str) -> list[str]:
+        return [
+            app_session_id
+            for app_session_id, data in self._app_sessions_data.items()
+            if data.get('user_id') == user_id
+        ]
 
     def get_app_session_subscriptions(
             self,
@@ -303,31 +295,35 @@ class Storage:
             need_push: bool | None = True,
             entity_id: str | None = None,
     ) -> list[Subscription]:
-        res: list[Subscription] = []
         data: dict = self._app_sessions_data.get(app_session_id)
-        if data and data.get("subscriptions"):
-            subs = data.get("subscriptions")
-            for sub in subs:
-                if entity_id and sub.get('entity_id') != entity_id:
-                    continue
-                if need_push and bool(sub.get('need_push')) != need_push:
-                    continue
-                res.append(Subscription(sub.get('entity_id'), sub.get('attribute'), bool(sub.get('need_push'))))
-        return res
+        if not data or not data.get("subscriptions"):
+            return []
+
+        return [
+            Subscription(sub.get('entity_id'), sub.get('attribute'), bool(sub.get('need_push')))
+            for sub in data.get("subscriptions", [])
+            if (entity_id is None or sub.get('entity_id') == entity_id)
+                and (need_push is None or bool(sub.get('need_push')) == need_push)
+        ]
 
     async def delete_inactive(self, threshold):
         for app_session, data in self._app_sessions_data.items():
-            if not data.get('last_update'):
+            last_update_int = data.get('last_update')
+
+            if last_update_int is None:
+                # No last_update timestamp, updating it
                 await self.update_app_session_last_update(app_session)
-            else:
-                lust_update_int = data.get('last_update')
-                try:
-                    lust_update = datetime.fromtimestamp(lust_update_int)
-                    if datetime.now() - lust_update > threshold:
-                        await self.remove_app_session(app_session)
-                except ValueError:
-                    LOGGER.debug("Incorrect data format: %s", lust_update_int)
-                    await self.update_app_session_last_update(app_session)
+                continue
+
+            try:
+                last_update = datetime.fromtimestamp(last_update_int)
+            except (ValueError, OSError) as e:
+                LOGGER.debug("Invalid last_update format for app_session %s: %s", app_session, last_update_int)
+                await self.update_app_session_last_update(app_session)
+                continue
+
+            if datetime.now() - last_update > threshold:
+                await self.remove_app_session(app_session)
 
     async def inactive_device_cleaner(self) -> None:
         """
@@ -347,7 +343,6 @@ class Storage:
         except asyncio.CancelledError as e:
             LOGGER.debug("Inactive sessions cleaner stopped. %s", e)
             raise
-
 
 
 STORAGE: Storage | None = Storage()
