@@ -6,7 +6,7 @@ import asyncio
 import threading
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, List
 
 from .models import AppSession, Subscription
 from homeassistant.helpers.storage import Store
@@ -139,6 +139,9 @@ class Storage:
             return None
         LOGGER.debug("---> Got users_data for user: %s, key: %s", user_id, key)
         return self._users_data[user_id][key]['value'], self._users_data[user_id][key]['value_hash']
+
+    def get_all_app_sessions_data(self) -> dict:
+        return self._app_sessions_data
 
     # Returns AppSession object, or None if not found
     def get_app_session(
@@ -286,6 +289,13 @@ class Storage:
             app_session_id
             for app_session_id, data in self._app_sessions_data.items()
             if data.get('user_id') == user_id
+        ]
+
+    def get_app_session_ids_with_push_session(self) -> list[AppSession]:
+        return [
+            self.get_app_session(app_session_id)
+            for app_session_id, data in self._app_sessions_data.items()
+            if data.get('push_sessionId')
         ]
 
     def get_app_session_subscriptions(

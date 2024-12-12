@@ -2,19 +2,11 @@
 
 from collections.abc import Sequence
 
-import sqlalchemy
-from sqlalchemy import and_
-import sqlalchemy.dialects.sqlite as sqlite_dialect
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from ..errors import DatabaseError
-from ..subscription.models import Subscription
-from .models import DomikaPushDataCreate, DomikaPushDataUpdate, PushData, _Event
+from ..storage.models import Subscription
+from .models import PushData
 
 
 async def get(
-    db_session: AsyncSession,
     event_id: str,
 ) -> Sequence[PushData]:
     """

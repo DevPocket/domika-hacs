@@ -4,8 +4,6 @@ import json
 
 import aiohttp
 from aiohttp import ClientTimeout
-import sqlalchemy
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..const import LOGGER
 
@@ -16,76 +14,8 @@ from .service import decrease_delay_all, delete_by_app_session_id
 from ..storage.storage import STORAGE
 
 
-async def confirm_event(event_ids: list[str]) -> None:
-    """
-    Confirm that event is fully processed by the application.
-
-    Args:
-        event_ids: list event id's that was confirmed by the application.
-    """
-    for event in event_ids:
-        await confirmed_events_queue.put(event)
-
-
-async def register_event(
-    http_session: aiohttp.ClientSession,
-    push_server_url: str,
-    push_server_timeout: ClientTimeout,
-    *,
-    push_data: list[DomikaPushDataCreate],
-    critical_push_needed: bool,
-    critical_alert_payload: dict,
-) -> list[DomikaPushedEvents]:
-    """
-    Register new push data, and send critical push if needed.
-
-    All push data items must belong to the same entity and share same context.
-
-    Args:
-        http_session: aiohttp session.
-        push_server_url: domika push server url.
-        push_server_timeout: domika push server response timeout.
-        push_data: list of push data entities.
-        critical_push_needed: critical push flag.
-        critical_alert_payload: payload in case we need to send a critical push.
-
-    Raises:
-        errors.DatabaseError: in case when database operation can't be performed.
-        push_server_errors.DomikaPushServerError: in case of internal aiohttp error.
-        push_server_errors.BadRequestError: if push server response with bad request.
-        push_server_errors.UnexpectedServerResponseError: if push server response with
-            unexpected status.
-    """
-    result: list[DomikaPushedEvents] = []
-    if not push_data:
-        return result
-
-    for event in push_data:
-        await events_queue.put(event)
-
-    if critical_push_needed:
-        verified_devices = await device_service.get_all_with_push_session_id()
-
-        for device in verified_devices:
-            if not device.push_session_id:
-                continue
-
-            await _send_push_data(
-                None,
-                http_session,
-                push_server_url,
-                push_server_timeout,
-                device.app_session_id,
-                device.push_session_id,
-                critical_alert_payload,
-                critical=True,
-            )
-
-    return result
-
 
 async def push_registered_events(
-    db_session: AsyncSession,
     http_session: aiohttp.ClientSession,
     push_server_url: str,
     push_server_timeout: ClientTimeout,
@@ -230,62 +160,4 @@ async def _clear_push_session_id(
         )
 
 
-async def _send_push_data(
-    db_session: AsyncSession | None,
-    http_session: aiohttp.ClientSession,
-    push_server_url: str,
-    push_server_timeout: ClientTimeout,
-    app_session_id: str,
-    push_session_id: str,
-    critical_alert_payload: dict,
-    *,
-    critical: bool = False,
-) -> None:
-    LOGGER.debug(
-        "Push events %sto %s. %s",
-        "(critical) " if critical else "",
-        push_session_id,
-        critical_alert_payload,
-    )
 
-    try:
-        async with (
-            http_session.post(
-                f"{push_server_url}/notification/critical_push"
-                if critical
-                else f"{push_server_url}/notification/push",
-                headers={
-                    "x-session-id": str(push_session_id),
-                },
-                json={"data": json.dumps(critical_alert_payload)},
-                timeout=push_server_timeout,
-            ) as resp,
-        ):
-            if resp.status == statuses.HTTP_204_NO_CONTENT:
-                # All OK. Notification pushed.
-                return
-
-            if resp.status == statuses.HTTP_401_UNAUTHORIZED:
-                if db_session is None:
-                    # Create database session implicitly.
-                    async with database_core.get_session() as db_session_:
-                        await _clear_push_session_id(
-                            db_session_,
-                            app_session_id,
-                            push_session_id,
-                        )
-                    return
-
-                await _clear_push_session_id(
-                    db_session,
-                    app_session_id,
-                    push_session_id,
-                )
-                return
-
-            if resp.status == statuses.HTTP_400_BAD_REQUEST:
-                raise push_server_errors.BadRequestError(await resp.json())
-
-            raise push_server_errors.UnexpectedServerResponseError(resp.status)
-    except aiohttp.ClientError as e:
-        raise push_server_errors.DomikaPushServerError(str(e)) from None
