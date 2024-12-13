@@ -1,12 +1,7 @@
-"""Domika homeassistant framework errors."""
+"""Domika errors."""
 
 
-class DomikaFrameworkBaseError(Exception):
-    """Base error class."""
-
-
-
-class AppSessionIdNotFoundError(DomikaFrameworkBaseError):
+class AppSessionIdNotFoundError(Exception):
     """No app session id found."""
 
     def __init__(self, app_session_id: str):
@@ -14,7 +9,7 @@ class AppSessionIdNotFoundError(DomikaFrameworkBaseError):
         self.app_session_id = app_session_id
 
 
-class PushSessionIdNotFoundError(DomikaFrameworkBaseError):
+class PushSessionIdNotFoundError(Exception):
     """Push session id found on the integration."""
 
     def __init__(self, app_session_id: str):

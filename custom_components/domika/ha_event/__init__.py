@@ -26,7 +26,7 @@ async def event_pusher(hass: HomeAssistant) -> None:
         while True:
             await asyncio.sleep(PUSH_INTERVAL.total_seconds())
             try:
-                await ha_event_flow.push_registered_events(hass)
+                await ha_event_flow.process_push_data(hass)
             except Exception:  # noqa: BLE001
                 LOGGER.exception("Event pusher error")
     except asyncio.CancelledError as e:

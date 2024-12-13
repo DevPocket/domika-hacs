@@ -12,7 +12,6 @@ from homeassistant.components.websocket_api import (
 from homeassistant.core import HomeAssistant
 
 from ..const import LOGGER
-from ..errors import DomikaFrameworkBaseError
 from ..storage.storage import STORAGE
 
 
@@ -39,13 +38,6 @@ async def _store_value(
                     },
                 )
 
-    except DomikaFrameworkBaseError as e:
-        LOGGER.error(
-            'Can\'t update value for key: %s, user "%s". Framework error. %s',
-            key,
-            user_id,
-            e,
-        )
     except Exception:  # noqa: BLE001
         LOGGER.exception(
             'Can\'t update value for key: %s, user "%s". Unhandled error',

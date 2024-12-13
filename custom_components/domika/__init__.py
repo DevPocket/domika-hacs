@@ -65,13 +65,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Init storage.
     await storage.init_storage(hass)
 
-    # Start pushed data processor background task.
-    entry.async_create_background_task(
-        hass,
-        push_data_storage.pushed_data_processor(),
-        "pushed_data_processor",
-    )
-
     # Start inactive sessions cleaner background task.
     entry.async_create_background_task(
         hass,

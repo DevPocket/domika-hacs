@@ -11,7 +11,8 @@ from homeassistant.components.cloud import (
     CloudNotAvailable,
     async_remote_ui_url,
 )
-from homeassistant.components.hassio import get_host_info, is_hassio
+from homeassistant.components.hassio import get_host_info
+from homeassistant.helpers.hassio import is_hassio
 from homeassistant.components.websocket_api import (
     ActiveConnection,
     async_response,
@@ -164,6 +165,10 @@ async def _update_app_session(
         if app_session.user_id == user_id:
             new_app_session_id = app_session_id
             await STORAGE.update_app_session_last_update(app_session_id)
+            LOGGER.debug(
+                "_update_app_session app_session found: %s, updating last_update",
+                new_app_session_id,
+            )
         else:
             LOGGER.error(
                 "_update_app_session user_id mismatch: got %s, in storage: %s.",
@@ -173,10 +178,10 @@ async def _update_app_session(
             await STORAGE.remove_app_session(app_session_id)
     if not new_app_session_id:
         new_app_session_id = await STORAGE.create_app_session(user_id, push_token_hash)
-    LOGGER.debug(
-        "_update_app_session new app_session_id created: %s.",
-        new_app_session_id,
-    )
+        LOGGER.debug(
+            "_update_app_session new app_session_id created: %s.",
+            new_app_session_id,
+        )
     result_old_app_sessions: list[str] = []
     if push_token_hash:
         result_old_app_sessions = STORAGE.get_app_session_ids_with_hash(push_token_hash)
@@ -291,8 +296,6 @@ async def _remove_push_session(hass: HomeAssistant, app_session_id: str) -> None
         LOGGER.error("Can't remove push session. Push server error. %s. %s", e, e.body)
     except push_server_errors.DomikaPushServerError as e:
         LOGGER.error("Can't remove push session. Push server error. %s", e)
-    except errors.DomikaFrameworkBaseError as e:
-        LOGGER.error("Can't remove push session. Framework error. %s", e)
     except Exception:  # noqa: BLE001
         LOGGER.exception("Can't remove push session. Unhandled error")
 
@@ -579,15 +582,6 @@ async def _verify_push_session(
         LOGGER.error(
             'Can\'t verify verification key "%s" for application "%s". '
             'Push server error. Push token hash "%s". %s',
-            verification_key,
-            app_session_id,
-            push_token_hash,
-            e,
-        )
-    except errors.DomikaFrameworkBaseError as e:
-        LOGGER.error(
-            'Can\'t verify verification key "%s" for application "%s". '
-            'Framework error. Push token hash "%s". %s',
             verification_key,
             app_session_id,
             push_token_hash,

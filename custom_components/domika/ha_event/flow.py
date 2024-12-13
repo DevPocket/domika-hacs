@@ -106,7 +106,10 @@ async def register_event(
     )
 
     if critical_push_needed:
-        devices_with_push_session = STORAGE.get_app_session_ids_with_push_session()
+        devices_with_push_session = STORAGE.get_app_sessions_with_push_session()
+
+        # # TODO: remove!
+        # await process_push_data(hass)
 
         for device in devices_with_push_session:
             await _send_push_data(
@@ -136,7 +139,7 @@ def _get_critical_alert_payload(hass: HomeAssistant, entity_id: str) -> dict:
     return {"title-loc-key": alert_title, "body": alert_body}
 
 
-async def push_registered_events(hass: HomeAssistant) -> None:
+async def process_push_data(hass: HomeAssistant) -> None:
     """
     Push registered events with delay = 0 to the push server.
 
@@ -237,15 +240,15 @@ async def _send_push_data(
         push_server_timeout: ClientTimeout,
         app_session_id: str,
         push_session_id: str,
-        critical_alert_payload: dict,
+        payload: dict,
         *,
         critical: bool = False,
 ) -> None:
     LOGGER.debug(
-        "Push events %sto %s. %s",
+            "Push events %sto %s. %s",
         "(critical) " if critical else "",
         push_session_id,
-        critical_alert_payload,
+        payload,
     )
 
     try:
@@ -257,7 +260,7 @@ async def _send_push_data(
                 headers={
                     "x-session-id": str(push_session_id),
                 },
-                json={"data": json.dumps(critical_alert_payload)},
+                json={"data": json.dumps(payload)},
                 timeout=push_server_timeout,
             ) as resp,
         ):

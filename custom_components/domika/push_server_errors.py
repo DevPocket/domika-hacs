@@ -1,9 +1,7 @@
 """Domika push server errors."""
 
-from .errors import DomikaFrameworkBaseError
 
-
-class DomikaPushServerError(DomikaFrameworkBaseError):
+class DomikaPushServerError(Exception):
     """Base push server error class."""
 
 

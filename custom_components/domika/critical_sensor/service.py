@@ -15,7 +15,6 @@ from ..const import (
     SENSORS_DOMAIN,
     WARNING_NOTIFICATION_DEVICE_CLASSES,
 )
-from ..errors import DomikaFrameworkBaseError
 from .enums import NotificationType
 from .models import DomikaNotificationSensor, DomikaNotificationSensorsRead
 from ..storage.storage import STORAGE
@@ -113,13 +112,6 @@ async def get_with_smiley(
             result[smiley_hash_key] = key_value[1]
 
         return result
-    except DomikaFrameworkBaseError as e:
-        LOGGER.error(
-            'Can\'t get value for key: %s, user "%s". Framework error. %s',
-            smiley_key,
-            user_id,
-            e,
-        )
     except Exception:  # noqa: BLE001
         LOGGER.exception(
             'Can\'t get value for key: %s, user "%s". Unhandled error',

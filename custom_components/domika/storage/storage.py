@@ -57,21 +57,7 @@ class UsersStore(Store[dict[str, Any]]):
 #     },
 #     …………
 #  }
-class AppSessionsStore(Store[dict[str, Any]]):
-    async def _async_migrate_func(
-            self,
-            old_major_version: int,
-            old_minor_version: int,
-            old_data: dict[str, Any]
-    ) -> Store[dict[str, Any]]:
-        """Migrate to the new version."""
-        LOGGER.debug("---> Migrating users_data")
-        if old_major_version > STORAGE_VERSION_APP_SESSIONS:
-            raise ValueError("Can't migrate to future version")
-        # Not implemented yet.
-        if old_major_version == 1:
-            pass
-        return old_data  # type: ignore[return-value]
+
 
 
 class Storage:
@@ -101,6 +87,7 @@ class Storage:
             self._app_sessions_store = AppSessionsStore(
                 hass, STORAGE_VERSION_APP_SESSIONS, STORAGE_KEY_APP_SESSIONS
             )
+
             if (app_sessions_data := await self._app_sessions_store.async_load()) is None:
                 LOGGER.debug("---> Can't load data from app_sessions storage")
                 self._app_sessions_data = {}
@@ -247,8 +234,8 @@ class Storage:
                 attribute = sub.get("attribute")
 
                 if entity_id and attribute:
-                    sub["need_push"] = "1" if entity_id in subscriptions and attribute in subscriptions[
-                        entity_id] else "0"
+                    sub["need_push"] = 1 if entity_id in subscriptions and attribute in subscriptions[
+                        entity_id] else 0
 
         # Save the updated data
         await self._save_app_sessions_data()
@@ -271,7 +258,7 @@ class Storage:
 
             # Create new subscriptions
             new_subscriptions = [
-                {"entity_id": entity_id, "attribute": att, "need_push": str(need_push)}
+                {"entity_id": entity_id, "attribute": att, "need_push": need_push}
                 for entity_id, atts in subscriptions.items()
                 if atts
                 for att, need_push in atts.items()
@@ -295,11 +282,11 @@ class Storage:
             if data.get('user_id') == user_id
         ]
 
-    def get_app_session_ids_with_push_session(self) -> list[AppSession]:
+    def get_app_sessions_with_push_session(self) -> list[AppSession]:
         return [
             self.get_app_session(app_session_id)
             for app_session_id, data in self._app_sessions_data.items()
-            if data.get('push_sessionId')
+            if data.get('push_session_id')
         ]
 
     def get_app_session_subscriptions(
@@ -314,10 +301,10 @@ class Storage:
             return []
 
         return [
-            Subscription(sub.get('entity_id'), sub.get('attribute'), bool(sub.get('need_push')))
+            Subscription(app_session_id, sub.get('entity_id'), sub.get('attribute'), bool(sub.get('need_push')))
             for sub in data.get("subscriptions", [])
-            if (entity_id is None or sub.get('entity_id') == entity_id)
-                and (need_push is None or bool(sub.get('need_push')) == need_push)
+            if (not entity_id or sub.get('entity_id') == entity_id)
+               and (not need_push or bool(sub.get('need_push')) == need_push)
         ]
 
     def get_app_sessions_for_event(self, entity_id: str, attributes: list[str]) -> list[str]:
