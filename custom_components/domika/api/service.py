@@ -5,7 +5,7 @@ from homeassistant.core import async_get_hass
 
 from ..const import LOGGER
 from ..utils import flatten_json
-from ..storage.storage import STORAGE
+from ..storage import APP_SESSIONS_STORAGE
 
 
 @dataclass
@@ -34,7 +34,7 @@ async def get(
 
     entities_attributes: dict[str, list[str]] = {}
 
-    subscriptions = STORAGE.get_app_session_subscriptions(
+    subscriptions = APP_SESSIONS_STORAGE.get_app_session_subscriptions(
         app_session_id,
         need_push=need_push,
         entity_id=entity_id,

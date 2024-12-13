@@ -11,7 +11,7 @@ from homeassistant.components.websocket_api import (
 from homeassistant.core import HomeAssistant
 
 from ..const import LOGGER
-from ..storage.storage import STORAGE
+from ..storage import APP_SESSIONS_STORAGE
 from ..push_data_storage.pushdatastorage import PUSHDATA_STORAGE
 from ..utils import flatten_json
 
@@ -61,5 +61,5 @@ async def websocket_domika_resubscribe(
             )
     connection.send_result(msg_id, {"entities": res_list})
 
-    await STORAGE.app_session_resubscribe(app_session_id, subscriptions)
+    await APP_SESSIONS_STORAGE.app_session_resubscribe(app_session_id, subscriptions)
     PUSHDATA_STORAGE.remove_by_app_session_id(app_session_id=app_session_id)

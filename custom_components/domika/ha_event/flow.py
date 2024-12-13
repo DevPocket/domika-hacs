@@ -28,7 +28,7 @@ from ..critical_sensor import service as critical_sensor_service
 from ..critical_sensor.enums import NotificationType
 from ..push_data_storage.pushdatastorage import PUSHDATA_STORAGE
 from ..utils import flatten_json
-from ..storage.storage import STORAGE
+from ..storage import APP_SESSIONS_STORAGE
 
 
 async def register_event(
@@ -76,7 +76,7 @@ async def register_event(
     )
 
     # Get application id's associated with attributes.
-    app_session_ids = STORAGE.get_app_sessions_for_event(
+    app_session_ids = APP_SESSIONS_STORAGE.get_app_sessions_for_event(
         entity_id=entity_id,
         attributes=list(attributes.keys())
     )
@@ -96,7 +96,7 @@ async def register_event(
     # Process event to push_data_storage
     delay = await _get_delay_by_entity_id(hass, entity_id)
     PUSHDATA_STORAGE.process_entity_changes(
-        app_sessions_data=STORAGE.get_all_app_sessions_data(),
+        app_sessions_data=APP_SESSIONS_STORAGE.get_all_app_sessions_data(),
         changed_entity_id=entity_id,
         changed_attributes=attributes,
         event_id=event_id,
@@ -106,7 +106,7 @@ async def register_event(
     )
 
     if critical_push_needed:
-        devices_with_push_session = STORAGE.get_app_sessions_with_push_session()
+        devices_with_push_session = APP_SESSIONS_STORAGE.get_app_sessions_with_push_session()
 
         # # TODO: remove!
         # await process_push_data(hass)
@@ -269,7 +269,7 @@ async def _send_push_data(
                 return
 
             if resp.status == statuses.HTTP_401_UNAUTHORIZED:
-                await STORAGE.remove_push_session(app_session_id)
+                await APP_SESSIONS_STORAGE.remove_push_session(app_session_id)
                 return
 
             if resp.status == statuses.HTTP_400_BAD_REQUEST:

@@ -17,7 +17,7 @@ from ..const import (
 )
 from .enums import NotificationType
 from .models import DomikaNotificationSensor, DomikaNotificationSensorsRead
-from ..storage.storage import STORAGE
+from ..storage import USERS_STORAGE
 
 if TYPE_CHECKING:
     from homeassistant.helpers.entity_registry import RegistryEntry
@@ -105,7 +105,7 @@ async def get_with_smiley(
         sensors_data = get(hass, notification_types)
         result = sensors_data.to_dict()
 
-        key_value = STORAGE.get_users_data(user_id=user_id, key=smiley_key)
+        key_value = USERS_STORAGE.get_users_data(user_id=user_id, key=smiley_key)
 
         if key_value:
             result[smiley_key] = key_value[0]

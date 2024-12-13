@@ -23,7 +23,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from ..const import DOMAIN, LOGGER, PUSH_SERVER_TIMEOUT, PUSH_SERVER_URL
-from ..storage.storage import STORAGE
+from ..storage import APP_SESSIONS_STORAGE
 from .. import errors, push_server_errors
 from . import flow as sessions_flow
 
@@ -159,12 +159,12 @@ async def _update_app_session(
 ) -> (str, list):
     new_app_session_id: str | None = None
     # Try to find the proper record.
-    app_session = STORAGE.get_app_session(app_session_id)
+    app_session = APP_SESSIONS_STORAGE.get_app_session(app_session_id)
     if app_session:
         # If found and user_id matches - update last_update.
         if app_session.user_id == user_id:
             new_app_session_id = app_session_id
-            await STORAGE.update_app_session_last_update(app_session_id)
+            await APP_SESSIONS_STORAGE.update_app_session_last_update(app_session_id)
             LOGGER.debug(
                 "_update_app_session app_session found: %s, updating last_update",
                 new_app_session_id,
@@ -175,16 +175,16 @@ async def _update_app_session(
                 user_id,
                 app_session.user_id,
             )
-            await STORAGE.remove_app_session(app_session_id)
+            await APP_SESSIONS_STORAGE.remove_app_session(app_session_id)
     if not new_app_session_id:
-        new_app_session_id = await STORAGE.create_app_session(user_id, push_token_hash)
+        new_app_session_id = await APP_SESSIONS_STORAGE.create_app_session(user_id, push_token_hash)
         LOGGER.debug(
             "_update_app_session new app_session_id created: %s.",
             new_app_session_id,
         )
     result_old_app_sessions: list[str] = []
     if push_token_hash:
-        result_old_app_sessions = STORAGE.get_app_session_ids_with_hash(push_token_hash)
+        result_old_app_sessions = APP_SESSIONS_STORAGE.get_app_session_ids_with_hash(push_token_hash)
         if new_app_session_id in result_old_app_sessions:
             result_old_app_sessions.remove(new_app_session_id)
     if result_old_app_sessions:
@@ -200,7 +200,7 @@ async def _check_push_token(
         app_session_id: str,
         push_token_hash: str,
 ) -> None:
-    app_session = STORAGE.get_app_session(app_session_id)
+    app_session = APP_SESSIONS_STORAGE.get_app_session(app_session_id)
 
     if app_session:
         if app_session.push_session_id and app_session.push_token_hash == push_token_hash:
@@ -471,7 +471,7 @@ async def _remove_app_session(hass: HomeAssistant, app_session_id: str) -> None:
             app_session_id,
         )
 
-        await STORAGE.remove_app_session(app_session_id)
+        await APP_SESSIONS_STORAGE.remove_app_session(app_session_id)
         LOGGER.info('App session "%s" successfully removed', app_session_id)
     except errors.AppSessionIdNotFoundError as e:
         LOGGER.error(

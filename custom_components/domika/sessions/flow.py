@@ -6,7 +6,7 @@ import aiohttp
 from ..const import LOGGER
 
 from .. import errors, push_server_errors, statuses
-from ..storage.storage import STORAGE
+from ..storage import APP_SESSIONS_STORAGE
 
 
 async def remove_push_session(
@@ -34,7 +34,7 @@ async def remove_push_session(
         push_server_errors.UnexpectedServerResponseError: if push server response with
             unexpected status.
     """
-    device = STORAGE.get_app_session(app_session_id)
+    device = APP_SESSIONS_STORAGE.get_app_session(app_session_id)
     if not device:
         raise errors.AppSessionIdNotFoundError(app_session_id)
 
@@ -43,7 +43,7 @@ async def remove_push_session(
     push_session_id = device.push_session_id
 
     try:
-        await STORAGE.remove_push_session(app_session_id)
+        await APP_SESSIONS_STORAGE.remove_push_session(app_session_id)
 
         async with (
             http_session.delete(
@@ -173,7 +173,7 @@ async def verify_push_session(
         msg = "One of the parameters is missing"
         raise ValueError(msg)
 
-    app_session_data = STORAGE.get_app_session(app_session_id)
+    app_session_data = APP_SESSIONS_STORAGE.get_app_session(app_session_id)
     if not app_session_data:
         raise errors.AppSessionIdNotFoundError(app_session_id)
 
@@ -199,12 +199,12 @@ async def verify_push_session(
                 # Remove Devices with the same push_token_hash (if not empty), except
                 # current sessions.
                 if push_token_hash:
-                    await STORAGE.remove_app_sessions_with_push_token(
+                    await APP_SESSIONS_STORAGE.remove_app_sessions_with_push_token(
                         push_token_hash,
                         app_session_id,
                     )
                 # Update push_session_id and push_token_hash.
-                await STORAGE.update_push_token(app_session_id, push_session_id, push_token_hash)
+                await APP_SESSIONS_STORAGE.update_push_token(app_session_id, push_session_id, push_token_hash)
                 return push_session_id
 
             if resp.status == statuses.HTTP_400_BAD_REQUEST:

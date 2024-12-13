@@ -12,7 +12,7 @@ from homeassistant.components.websocket_api import (
 from homeassistant.core import HomeAssistant
 
 from ..const import LOGGER
-from ..storage.storage import STORAGE
+from ..storage import USERS_STORAGE, APP_SESSIONS_STORAGE
 
 
 async def _store_value(
@@ -24,8 +24,8 @@ async def _store_value(
     app_session_id: str | None,
 ) -> None:
     try:
-        await STORAGE.update_users_data(user_id=user_id, key=key, value=value, value_hash=value_hash)
-        app_session_ids = STORAGE.get_app_session_ids_by_user_id(user_id)
+        await USERS_STORAGE.update_users_data(user_id=user_id, key=key, value=value, value_hash=value_hash)
+        app_session_ids = APP_SESSIONS_STORAGE.get_app_session_ids_by_user_id(user_id)
 
         for app_session in app_session_ids:
             if app_session != app_session_id:
@@ -94,7 +94,7 @@ def _get_value(
     key: str,
     user_id: str,
 ) -> Tuple[str, str] | None:
-    return STORAGE.get_users_data(user_id=user_id, key=key)
+    return USERS_STORAGE.get_users_data(user_id=user_id, key=key)
 
 
 @websocket_command(

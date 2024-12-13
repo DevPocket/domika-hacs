@@ -23,11 +23,10 @@ from .const import (
 )
 from .critical_sensor import router as critical_sensor_router
 from .sessions import router as device_router
-from .storage import storage as storage
 from .entity import router as entity_router
 from .ha_event import event_pusher, flow as ha_event_flow, router as ha_event_router
 from .key_value import router as key_value_router
-from .storage.storage import STORAGE
+from .storage import init_storage, APP_SESSIONS_STORAGE
 from .subscription import router as subscription_router
 from . import push_data_storage
 
@@ -63,12 +62,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN]["entry"] = entry
 
     # Init storage.
-    await storage.init_storage(hass)
+    await init_storage(hass)
 
     # Start inactive sessions cleaner background task.
     entry.async_create_background_task(
         hass,
-        STORAGE.inactive_device_cleaner(),
+        APP_SESSIONS_STORAGE.inactive_device_cleaner(),
         "inactive_device_cleaner",
     )
 

@@ -9,7 +9,7 @@ from homeassistant.core import async_get_hass
 from homeassistant.helpers.http import HomeAssistantView
 
 from ..const import DOMAIN, LOGGER
-from ..storage.storage import STORAGE, Storage
+from ..storage import APP_SESSIONS_STORAGE
 
 
 class DomikaAPIPushResubscribe(HomeAssistantView):
@@ -47,7 +47,7 @@ class DomikaAPIPushResubscribe(HomeAssistantView):
                 HTTPStatus.UNAUTHORIZED,
             )
 
-        await STORAGE.app_session_resubscribe_push(app_session_id, subscriptions)
+        await APP_SESSIONS_STORAGE.app_session_resubscribe_push(app_session_id, subscriptions)
 
         data = {"result": "success"}
         LOGGER.debug("DomikaAPIPushResubscribe data: %s", data)
