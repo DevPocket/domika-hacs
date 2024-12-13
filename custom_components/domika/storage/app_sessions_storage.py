@@ -393,9 +393,10 @@ class AppSessionsStorage:
         for the specified entity_id.
         Lock is not required as we are not accessing data directly, and cache is immutable.
         """
+
         return [
             app_session_id
-            for app_session_id, session_data in self._all_subscriptions.get(entity_id, {})
+            for app_session_id, session_data in self._all_subscriptions.get(entity_id, {}).items()
             if session_data.get('attributes', set()) & set(attributes)
         ]
 

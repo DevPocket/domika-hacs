@@ -3,6 +3,8 @@ from .models import PushData
 import threading
 from typing import List
 
+from ..const import LOGGER
+
 
 class PushDataStorage:
     def __init__(self):
@@ -107,7 +109,7 @@ class PushDataStorage:
         - changed_entity_id: The entity_id of the changed entity.
         - changed_attributes: A dictionary {attribute: new_value}.
         """
-        for app_session_id, data in push_subscriptions.get(changed_entity_id, []):
+        for app_session_id, data in push_subscriptions.get(changed_entity_id, {}).items():
             push_session_id = data.get('push_session_id')
             if not push_session_id:
                 continue
