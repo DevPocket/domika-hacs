@@ -52,16 +52,12 @@ def get(
 
         # If user manually added entity to the list for critical pushes — it's CRITICAL
         # for us.
-        sensor_notification_type: NotificationType | None = None
         if entity_id in critical_included_entity_ids:
             sensor_notification_type = NotificationType.CRITICAL
         else:
             sensor_notification_type = notification_type(hass, entity_id)
 
-        if (
-            sensor_notification_type is None
-            or sensor_notification_type not in notification_types
-        ):
+        if not sensor_notification_type or sensor_notification_type not in notification_types:
             continue
 
         sensor_state: State | None = hass.states.get(entity_id)

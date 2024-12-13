@@ -34,7 +34,7 @@ async def get(
 
     entities_attributes: dict[str, list[str]] = {}
 
-    subscriptions = APP_SESSIONS_STORAGE.get_app_session_subscriptions(
+    subscriptions = APP_SESSIONS_STORAGE.get_subscriptions(
         app_session_id,
         need_push=need_push,
         entity_id=entity_id,

@@ -96,7 +96,7 @@ async def register_event(
     # Process event to push_data_storage
     delay = await _get_delay_by_entity_id(hass, entity_id)
     PUSHDATA_STORAGE.process_entity_changes(
-        app_sessions_data=APP_SESSIONS_STORAGE.get_all_app_sessions_data(),
+        app_sessions_data=APP_SESSIONS_STORAGE.get_data_copy(),
         changed_entity_id=entity_id,
         changed_attributes=attributes,
         event_id=event_id,
@@ -106,18 +106,18 @@ async def register_event(
     )
 
     if critical_push_needed:
-        devices_with_push_session = APP_SESSIONS_STORAGE.get_app_sessions_with_push_session()
+        app_sessions_with_push_session = APP_SESSIONS_STORAGE.get_app_sessions_with_push_session()
 
         # # TODO: remove!
         # await process_push_data(hass)
 
-        for device in devices_with_push_session:
+        for item in app_sessions_with_push_session:
             await _send_push_data(
                 async_get_clientsession(hass),
                 PUSH_SERVER_URL,
                 PUSH_SERVER_TIMEOUT,
-                device.id,
-                device.push_session_id,
+                item[0],  # app_session_id
+                item[1],  # push_session_id
                 critical_alert_payload,
                 critical=True,
             )
@@ -245,7 +245,7 @@ async def _send_push_data(
         critical: bool = False,
 ) -> None:
     LOGGER.debug(
-            "Push events %sto %s. %s",
+        "Push events %sto %s. %s",
         "(critical) " if critical else "",
         push_session_id,
         payload,

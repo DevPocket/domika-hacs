@@ -164,7 +164,7 @@ async def _update_app_session(
         # If found and user_id matches - update last_update.
         if app_session.user_id == user_id:
             new_app_session_id = app_session_id
-            await APP_SESSIONS_STORAGE.update_app_session_last_update(app_session_id)
+            await APP_SESSIONS_STORAGE.update_last_update(app_session_id)
             LOGGER.debug(
                 "_update_app_session app_session found: %s, updating last_update",
                 new_app_session_id,
@@ -175,9 +175,9 @@ async def _update_app_session(
                 user_id,
                 app_session.user_id,
             )
-            await APP_SESSIONS_STORAGE.remove_app_session(app_session_id)
+            await APP_SESSIONS_STORAGE.remove(app_session_id)
     if not new_app_session_id:
-        new_app_session_id = await APP_SESSIONS_STORAGE.create_app_session(user_id, push_token_hash)
+        new_app_session_id = await APP_SESSIONS_STORAGE.create(user_id, push_token_hash)
         LOGGER.debug(
             "_update_app_session new app_session_id created: %s.",
             new_app_session_id,
@@ -471,7 +471,7 @@ async def _remove_app_session(hass: HomeAssistant, app_session_id: str) -> None:
             app_session_id,
         )
 
-        await APP_SESSIONS_STORAGE.remove_app_session(app_session_id)
+        await APP_SESSIONS_STORAGE.remove(app_session_id)
         LOGGER.info('App session "%s" successfully removed', app_session_id)
     except errors.AppSessionIdNotFoundError as e:
         LOGGER.error(

@@ -6,6 +6,7 @@ import enum
 import itertools
 from pathlib import Path
 from typing import TypeVar
+import threading
 
 T = TypeVar("T")
 
@@ -104,3 +105,31 @@ def chunks(iterable: Iterable[T], size: int) -> Generator[Iterator[T], None, Non
     for first in iterator:
         yield itertools.chain([first], itertools.islice(iterator, size - 1))
 
+
+class ReadWriteLock:
+    def __init__(self):
+        self._readers = 0
+        self._lock = threading.Lock()  # For synchronizing readers and writers
+        self._write_lock = threading.Lock()  # Ensures only one writer
+
+    def acquire_read(self):
+        """Acquire the lock for reading."""
+        with self._lock:
+            self._readers += 1
+            if self._readers == 1:  # First reader blocks writers
+                self._write_lock.acquire()
+
+    def release_read(self):
+        """Release the lock for reading."""
+        with self._lock:
+            self._readers -= 1
+            if self._readers == 0:  # Last reader releases writer lock
+                self._write_lock.release()
+
+    def acquire_write(self):
+        """Acquire the lock for writing."""
+        self._write_lock.acquire()
+
+    def release_write(self):
+        """Release the lock for writing."""
+        self._write_lock.release()
