@@ -61,6 +61,8 @@ class AppSessionsStorage:
     def __init__(self):
         self._store = None
         self._data: dict[str, Any] = {}
+        self._push_subscriptions: dict[str, Any] = {}
+        self._all_subscriptions: dict[str, Any] = {}
         self.rw_lock = ReadWriteLock()  # Read-write lock
 
     async def load_data(self, hass):
@@ -72,6 +74,7 @@ class AppSessionsStorage:
 
             if data := await self._store.async_load():
                 self._data = data
+                self._update_subscriptions_caches()
             LOGGER.debug("Loaded data from app sessions store: %s", self._data)
         finally:
             self.rw_lock.release_write()
@@ -88,12 +91,68 @@ class AppSessionsStorage:
         if self._store:
             self._store.async_delay_save(provide_data, delay)
 
-    def get_data_copy(self) -> dict:
-        self.rw_lock.acquire_read()
-        try:
-            return copy.deepcopy(self._data)
-        finally:
-            self.rw_lock.release_read()
+    def push_subscriptions(self) -> dict:
+        return self._push_subscriptions
+
+    def _get_subscription_cache(
+            self,
+            require_need_push: bool
+    ) -> dict:
+        """
+        Returns
+        {
+            'entity_id1': {
+                'app_session_id1': {
+                    'push_session_id': '123',
+                    'attributes': {'att1', 'att2'}
+                },
+                ……
+            }
+            ……
+        }
+        """
+        res = {}
+
+        for app_session_id, session_data in self._data.items():
+            # Get the push_session_id; skip if it's None or empty
+            push_session_id = session_data.get("push_session_id")
+            if not push_session_id:
+                continue
+
+            # Process subscriptions
+            subscriptions = session_data.get("subscriptions", [])
+            for sub in subscriptions:
+                if require_need_push and sub.get("need_push") != 1:
+                    continue
+
+                entity_id = sub.get("entity_id")
+                attribute = sub.get("attribute")
+
+                # Ensure entity_id exists in new_data
+                if entity_id not in res:
+                    res[entity_id] = {}
+
+                # Ensure app_session_id exists under the entity_id in new_data
+                if app_session_id not in res[entity_id]:
+                    res[entity_id][app_session_id] = {
+                        "push_session_id": push_session_id,
+                        "attributes": set()
+                    }
+
+                # Add the attribute to the list
+                res[entity_id][app_session_id]["attributes"].add(attribute)
+
+        return res
+
+    def _update_subscriptions_caches(self):
+        """
+        Updates push_subscriptions and all_subscriptions
+        The most frequent storage interaction is caused by new events,
+        so we want to have a cache for those requests
+
+        """
+        self._push_subscriptions = self._get_subscription_cache(require_need_push=True)
+        self._all_subscriptions = self._get_subscription_cache(require_need_push=False)
 
     # Returns AppSession object, or None if not found
     def get_app_session(
@@ -154,6 +213,7 @@ class AppSessionsStorage:
                     'Push session for app session "%s" successfully removed',
                     app_session_id,
                 )
+            self._update_subscriptions_caches()
         finally:
             self.rw_lock.release_write()
             self._save_app_sessions_data()
@@ -165,6 +225,7 @@ class AppSessionsStorage:
         self.rw_lock.acquire_write()
         try:
             self._data.pop(app_session_id, None)
+            self._update_subscriptions_caches()
         finally:
             self.rw_lock.release_write()
             self._save_app_sessions_data()
@@ -181,6 +242,7 @@ class AppSessionsStorage:
             for app_session_id, data in self._data.items():
                 if app_session_id != except_app_session_id and data.get("push_token_hash") == push_token_hash:
                     self._data.pop(app_session_id, None)
+            self._update_subscriptions_caches()
         finally:
             self.rw_lock.release_write()
             self._save_app_sessions_data()
@@ -233,6 +295,7 @@ class AppSessionsStorage:
                 if entity_id and attribute:
                     sub["need_push"] = 1 if entity_id in subscriptions and attribute in subscriptions[
                         entity_id] else 0
+            self._update_subscriptions_caches()
         finally:
             self.rw_lock.release_write()
             self._save_app_sessions_data()
@@ -264,6 +327,7 @@ class AppSessionsStorage:
 
             # Update the data and save
             data["subscriptions"] = new_subscriptions
+            self._update_subscriptions_caches()
         finally:
             self.rw_lock.release_write()
             self._save_app_sessions_data()
@@ -327,21 +391,13 @@ class AppSessionsStorage:
         """
         Get the list of app_session_ids subscribed to any of the given attributes
         for the specified entity_id.
+        Lock is not required as we are not accessing data directly, and cache is immutable.
         """
-        subscribed_app_sessions = []
-
-        self.rw_lock.acquire_read()
-        try:
-            for app_session_id, session_data in self._data.items():
-                subscriptions = session_data.get("subscriptions", [])
-                for subscription in subscriptions:
-                    # Check if the subscription matches the entity_id and any attribute
-                    if subscription.get("entity_id") == entity_id and subscription.get("attribute") in attributes:
-                        subscribed_app_sessions.append(app_session_id)
-                        break  # Break out as we only need to add the app_session_id once
-            return subscribed_app_sessions
-        finally:
-            self.rw_lock.release_read()
+        return [
+            app_session_id
+            for app_session_id, session_data in self._all_subscriptions.get(entity_id, {})
+            if session_data.get('attributes', set()) & set(attributes)
+        ]
 
     def delete_inactive(self, threshold):
         self.rw_lock.acquire_write()
@@ -367,6 +423,7 @@ class AppSessionsStorage:
 
                 if datetime.now() - last_update > threshold:
                     self._data.pop(app_session_id, None)
+            self._update_subscriptions_caches()
         finally:
             self.rw_lock.release_write()
             self._save_app_sessions_data()

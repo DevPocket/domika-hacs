@@ -80,7 +80,7 @@ class PushDataStorage:
 
     def process_entity_changes(
             self,
-            app_sessions_data: dict,
+            push_subscriptions: dict,
             changed_entity_id: str,
             changed_attributes: dict,
             event_id: str,
@@ -93,36 +93,38 @@ class PushDataStorage:
         and inserts PushData into the storage.
 
         Parameters:
-        - app_sessions_data: dict of app_session subscription data.
+        - push_subscriptions: dict of app_session subscription data.
+        {
+            'entity_id1': {
+                'app_session_id1': {
+                    'push_session_id': '123',
+                    'attributes': {'att1', 'att2'}
+                },
+                ……
+            },
+            ……
+        }
         - changed_entity_id: The entity_id of the changed entity.
         - changed_attributes: A dictionary {attribute: new_value}.
         """
-        for app_session_id, session_data in app_sessions_data.items():
-            push_session_id = session_data.get('push_session_id')
+        for app_session_id, data in push_subscriptions.get(changed_entity_id, []):
+            push_session_id = data.get('push_session_id')
             if not push_session_id:
                 continue
-
-            subscriptions = session_data.get("subscriptions", [])
-            for subscription in subscriptions:
-                entity_id = subscription["entity_id"]
-                attribute = subscription["attribute"]
-                need_push = subscription["need_push"]
-
-                if need_push == 1 and entity_id == changed_entity_id:
-                    if attribute in changed_attributes:
-                        push_data = PushData(
-                            event_id=event_id,
-                            app_session_id=app_session_id,
-                            push_session_id=push_session_id,
-                            entity_id=entity_id,
-                            attribute=attribute,
-                            value=changed_attributes[attribute],
-                            context_id=context_id,
-                            timestamp=timestamp,
-                            delay=delay,
-                        )
-                        # Insert PushData into storage
-                        self.insert(push_data)
+            for att in data.get('attributes', set()) & set(changed_attributes.keys()):
+                push_data = PushData(
+                    event_id=event_id,
+                    app_session_id=app_session_id,
+                    push_session_id=push_session_id,
+                    entity_id=changed_entity_id,
+                    attribute=att,
+                    value=changed_attributes[att],
+                    context_id=context_id,
+                    timestamp=timestamp,
+                    delay=delay,
+                )
+                # Insert PushData into storage
+                self.insert(push_data)
 
     def __str__(self):
         return "\n".join(str(data) for data in self.storage.values())

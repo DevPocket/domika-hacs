@@ -459,17 +459,7 @@ async def websocket_domika_update_push_session(
 
 async def _remove_app_session(hass: HomeAssistant, app_session_id: str) -> None:
     try:
-        push_session_id = await sessions_flow.remove_push_session(
-            async_get_clientsession(hass),
-            app_session_id,
-            PUSH_SERVER_URL,
-            ClientTimeout(total=PUSH_SERVER_TIMEOUT),
-        )
-        LOGGER.info(
-            'Push session "%s" for app session "%s" successfully removed',
-            push_session_id,
-            app_session_id,
-        )
+        await _remove_push_session(hass, app_session_id)
 
         APP_SESSIONS_STORAGE.remove(app_session_id)
         LOGGER.info('App session "%s" successfully removed', app_session_id)
@@ -477,24 +467,6 @@ async def _remove_app_session(hass: HomeAssistant, app_session_id: str) -> None:
         LOGGER.error(
             'Can\'t remove app session. Application with id "%s" not found',
             e.app_session_id,
-        )
-        return
-    except errors.PushSessionIdNotFoundError:
-        pass
-    except push_server_errors.BadRequestError as e:
-        LOGGER.error(
-            'Can\'t remove push session for app session "%s". '
-            "Push server error. %s. %s",
-            app_session_id,
-            e,
-            e.body,
-        )
-    except push_server_errors.DomikaPushServerError as e:
-        LOGGER.error(
-            'Can\'t remove push session for app session "%s". '
-            "Push server error. %s",
-            app_session_id,
-            e,
         )
     except Exception:  # noqa: BLE001
         LOGGER.exception("Can't remove app session. Unhandled error")

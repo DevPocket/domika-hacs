@@ -96,7 +96,7 @@ async def register_event(
     # Process event to push_data_storage
     delay = await _get_delay_by_entity_id(hass, entity_id)
     PUSHDATA_STORAGE.process_entity_changes(
-        app_sessions_data=APP_SESSIONS_STORAGE.get_data_copy(),
+        push_subscriptions=APP_SESSIONS_STORAGE.push_subscriptions(),
         changed_entity_id=entity_id,
         changed_attributes=attributes,
         event_id=event_id,
