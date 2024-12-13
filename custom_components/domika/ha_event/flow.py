@@ -108,7 +108,7 @@ async def register_event(
     if critical_push_needed:
         app_sessions_with_push_session = APP_SESSIONS_STORAGE.get_app_sessions_with_push_session()
 
-        # # TODO: remove!
+        # TODO: remove!
         # await process_push_data(hass)
 
         for item in app_sessions_with_push_session:
@@ -116,8 +116,8 @@ async def register_event(
                 async_get_clientsession(hass),
                 PUSH_SERVER_URL,
                 PUSH_SERVER_TIMEOUT,
-                item[0],  # app_session_id
-                item[1],  # push_session_id
+                item.app_session_id,
+                item.push_session_id,
                 critical_alert_payload,
                 critical=True,
             )
@@ -269,7 +269,7 @@ async def _send_push_data(
                 return
 
             if resp.status == statuses.HTTP_401_UNAUTHORIZED:
-                await APP_SESSIONS_STORAGE.remove_push_session(app_session_id)
+                APP_SESSIONS_STORAGE.remove_push_session(app_session_id)
                 return
 
             if resp.status == statuses.HTTP_400_BAD_REQUEST:

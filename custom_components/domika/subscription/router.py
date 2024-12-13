@@ -61,5 +61,5 @@ async def websocket_domika_resubscribe(
             )
     connection.send_result(msg_id, {"entities": res_list})
 
-    await APP_SESSIONS_STORAGE.resubscribe(app_session_id, subscriptions)
+    APP_SESSIONS_STORAGE.resubscribe(app_session_id, subscriptions)
     PUSHDATA_STORAGE.remove_by_app_session_id(app_session_id=app_session_id)

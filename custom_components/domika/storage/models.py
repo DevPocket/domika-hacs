@@ -1,6 +1,10 @@
 """Storage models."""
+from collections import namedtuple
 from dataclasses import dataclass
 from datetime import datetime
+
+UsersData = namedtuple('UsersData', 'value value_hash')
+Sessions = namedtuple('Sessions', 'app_session_id push_session_id')
 
 
 @dataclass

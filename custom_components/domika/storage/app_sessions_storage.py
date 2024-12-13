@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from .models import AppSession, Subscription
+from .models import AppSession, Subscription, Sessions
 from homeassistant.helpers.storage import Store
 from ..const import (
     DOMAIN,
@@ -76,9 +76,17 @@ class AppSessionsStorage:
         finally:
             self.rw_lock.release_write()
 
-    async def _save_app_sessions_data(self, delay=APP_SESSIONS_STORAGE_DEFAULT_WRITE_DELAY):
+    def _save_app_sessions_data(self, delay=APP_SESSIONS_STORAGE_DEFAULT_WRITE_DELAY):
+        def provide_data() -> dict:
+            self.rw_lock.acquire_write()
+            try:
+                # TODO: Do we need this here? How do we protect from saving data while other thread is changing it?
+                return copy.deepcopy(self._data)
+            finally:
+                self.rw_lock.release_write()
+
         if self._store:
-            self._store.async_delay_save(self._data, delay)
+            self._store.async_delay_save(provide_data, delay)
 
     def get_data_copy(self) -> dict:
         self.rw_lock.acquire_read()
@@ -100,20 +108,26 @@ class AppSessionsStorage:
         finally:
             self.rw_lock.release_read()
 
+    def _update_last_update(
+            self,
+            app_session_id: str
+    ):
+        if data := self._data.get(app_session_id):
+            data['last_update'] = int(datetime.now().timestamp())
+
     # Returns AppSession object, or None if not found
-    async def update_last_update(
+    def update_last_update(
             self,
             app_session_id: str
     ):
         self.rw_lock.acquire_write()
         try:
-            if data := self._data.get(app_session_id):
-                data['last_update'] = int(datetime.now().timestamp())
+            self._update_last_update(app_session_id)
         finally:
             self.rw_lock.release_write()
-            await self._save_app_sessions_data()
+            self._save_app_sessions_data()
 
-    async def update_push_session(
+    def update_push_session(
             self,
             app_session_id: str,
             push_session_id: str,
@@ -126,9 +140,9 @@ class AppSessionsStorage:
                 data['push_token_hash'] = push_token_hash
         finally:
             self.rw_lock.release_write()
-            await self._save_app_sessions_data()
+            self._save_app_sessions_data()
 
-    async def remove_push_session(
+    def remove_push_session(
             self,
             app_session_id: str,
     ):
@@ -142,9 +156,9 @@ class AppSessionsStorage:
                 )
         finally:
             self.rw_lock.release_write()
-            await self._save_app_sessions_data()
+            self._save_app_sessions_data()
 
-    async def remove(
+    def remove(
             self,
             app_session_id: str
     ):
@@ -153,11 +167,11 @@ class AppSessionsStorage:
             self._data.pop(app_session_id, None)
         finally:
             self.rw_lock.release_write()
-            await self._save_app_sessions_data()
+            self._save_app_sessions_data()
 
     # Remove all app_session records with given push_token
     # except one given app_session_id
-    async def remove_all_with_push_token_hash(
+    def remove_all_with_push_token_hash(
             self,
             push_token_hash: str,
             except_app_session_id: str
@@ -169,10 +183,10 @@ class AppSessionsStorage:
                     self._data.pop(app_session_id, None)
         finally:
             self.rw_lock.release_write()
-            await self._save_app_sessions_data()
+            self._save_app_sessions_data()
 
     # Create AppSession object
-    async def create(
+    def create(
             self,
             user_id: str,
             push_token_hash: str
@@ -189,11 +203,11 @@ class AppSessionsStorage:
             return new_id
         finally:
             self.rw_lock.release_write()
-            await self._save_app_sessions_data()
+            self._save_app_sessions_data()
 
     # Updates all subscriptions for the given app_session_id.
     # Sets need_push=1 for all given subscriptions, and 0 for all others.
-    async def resubscribe_push(
+    def resubscribe_push(
             self,
             app_session_id: str,
             subscriptions: dict[str, set[str]]
@@ -221,10 +235,10 @@ class AppSessionsStorage:
                         entity_id] else 0
         finally:
             self.rw_lock.release_write()
-            await self._save_app_sessions_data()
+            self._save_app_sessions_data()
 
     # Removes all subscriptions for the given app_session_id and creates new ones.
-    async def resubscribe(
+    def resubscribe(
             self,
             app_session_id: str,
             subscriptions: dict[str, dict[str, int]]
@@ -252,7 +266,7 @@ class AppSessionsStorage:
             data["subscriptions"] = new_subscriptions
         finally:
             self.rw_lock.release_write()
-            await self._save_app_sessions_data()
+            self._save_app_sessions_data()
 
     def get_app_session_ids_with_hash(self, push_token_hash: str) -> list[str]:
         self.rw_lock.acquire_read()
@@ -276,11 +290,11 @@ class AppSessionsStorage:
         finally:
             self.rw_lock.release_read()
 
-    def get_app_sessions_with_push_session(self) -> list[(str, str)]:
+    def get_app_sessions_with_push_session(self) -> list[Sessions]:
         self.rw_lock.acquire_read()
         try:
             return [
-                (app_session_id, data.get('push_session_id'))
+                Sessions(app_session_id, data.get('push_session_id'))
                 for app_session_id, data in self._data.items()
                 if data.get('push_session_id')
             ]
@@ -329,7 +343,7 @@ class AppSessionsStorage:
         finally:
             self.rw_lock.release_read()
 
-    async def delete_inactive(self, threshold):
+    def delete_inactive(self, threshold):
         self.rw_lock.acquire_write()
         try:
             for app_session_id, data in self._data.items():
@@ -337,7 +351,7 @@ class AppSessionsStorage:
 
                 if last_update_int is None:
                     # No last_update timestamp, updating it
-                    await self.update_last_update(app_session_id)
+                    self._update_last_update(app_session_id)
                     continue
 
                 try:
@@ -348,14 +362,14 @@ class AppSessionsStorage:
                         app_session_id,
                         last_update_int
                     )
-                    await self.update_last_update(app_session_id)
+                    self._update_last_update(app_session_id)
                     continue
 
                 if datetime.now() - last_update > threshold:
                     self._data.pop(app_session_id, None)
         finally:
             self.rw_lock.release_write()
-            await self._save_app_sessions_data()
+            self._save_app_sessions_data()
 
     async def inactive_device_cleaner(self) -> None:
         """
@@ -366,7 +380,7 @@ class AppSessionsStorage:
         try:
             while True:
                 try:
-                    await self.delete_inactive(
+                    self.delete_inactive(
                         DEVICE_INACTIVITY_TIME_THRESHOLD,
                     )
                 except Exception:  # noqa: BLE001

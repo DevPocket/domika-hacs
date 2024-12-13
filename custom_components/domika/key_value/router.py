@@ -24,7 +24,7 @@ async def _store_value(
     app_session_id: str | None,
 ) -> None:
     try:
-        await USERS_STORAGE.update_users_data(user_id=user_id, key=key, value=value, value_hash=value_hash)
+        USERS_STORAGE.update_users_data(user_id=user_id, key=key, value=value, value_hash=value_hash)
         app_session_ids = APP_SESSIONS_STORAGE.get_app_session_ids_by_user_id(user_id)
 
         for app_session in app_session_ids:

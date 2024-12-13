@@ -104,8 +104,8 @@ async def get_with_smiley(
         key_value = USERS_STORAGE.get_users_data(user_id=user_id, key=smiley_key)
 
         if key_value:
-            result[smiley_key] = key_value[0]
-            result[smiley_hash_key] = key_value[1]
+            result[smiley_key] = key_value.value
+            result[smiley_hash_key] = key_value.value_hash
 
         return result
     except Exception:  # noqa: BLE001

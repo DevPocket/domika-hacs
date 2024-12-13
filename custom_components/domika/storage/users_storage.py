@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import copy
 from typing import Any
 
 from homeassistant.helpers.storage import Store
 from ..const import DOMAIN, LOGGER, USERS_STORAGE_DEFAULT_WRITE_DELAY
-
 from ..utils import ReadWriteLock
+from .models import UsersData
 
 STORAGE_VERSION_USERS = 1
 STORAGE_KEY_USERS = f"{DOMAIN}/users_storage.json"
@@ -52,14 +53,19 @@ class UsersStorage:
         finally:
             self.rw_lock.release_write()
 
-    async def _save_users_data(self, delay=USERS_STORAGE_DEFAULT_WRITE_DELAY):
-        if self._store:
-            if not delay:
-                await self._store.async_save(self._data)
-            else:
-                await self._store.async_delay_save(self._data, delay)
+    def _save_users_data(self, delay=USERS_STORAGE_DEFAULT_WRITE_DELAY):
+        def provide_data() -> dict:
+            self.rw_lock.acquire_write()
+            try:
+                # TODO: Do we need this here? How do we protect from saving data while other thread is changing it?
+                return copy.deepcopy(self._data)
+            finally:
+                self.rw_lock.release_write()
 
-    async def update_users_data(
+        if self._store:
+            self._store.async_delay_save(provide_data, delay)
+
+    def update_users_data(
             self,
             user_id: str,
             key: str,
@@ -71,23 +77,21 @@ class UsersStorage:
             if not self._data.get(user_id):
                 self._data[user_id] = {}
             self._data[user_id][key] = {'value': value, 'value_hash': value_hash}
-            LOGGER.debug("---> Updated users_data for user: %s, key: %s", user_id, key)
-            await self._save_users_data()
         finally:
             self.rw_lock.release_write()
+            self._save_users_data()
 
     def get_users_data(
             self,
             user_id: str,
             key: str
-    ) -> tuple[str, str] | None:
+    ) -> UsersData | None:
         self.rw_lock.acquire_read()
         try:
             if not self._data.get(user_id):
                 return None
             if not self._data[user_id].get(key):
                 return None
-            LOGGER.debug("---> Got users_data for user: %s, key: %s", user_id, key)
-            return self._data[user_id][key]['value'], self._data[user_id][key]['value_hash']
+            return UsersData(self._data[user_id][key]['value'], self._data[user_id][key]['value_hash'])
         finally:
             self.rw_lock.release_read()

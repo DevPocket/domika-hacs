@@ -47,7 +47,7 @@ class DomikaAPIPushResubscribe(HomeAssistantView):
                 HTTPStatus.UNAUTHORIZED,
             )
 
-        await APP_SESSIONS_STORAGE.resubscribe_push(app_session_id, subscriptions)
+        APP_SESSIONS_STORAGE.resubscribe_push(app_session_id, subscriptions)
 
         data = {"result": "success"}
         LOGGER.debug("DomikaAPIPushResubscribe data: %s", data)

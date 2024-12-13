@@ -43,7 +43,7 @@ async def remove_push_session(
     push_session_id = app_session.push_session_id
 
     try:
-        await APP_SESSIONS_STORAGE.remove_push_session(app_session_id)
+        APP_SESSIONS_STORAGE.remove_push_session(app_session_id)
 
         async with (
             http_session.delete(
@@ -199,12 +199,12 @@ async def verify_push_session(
                 # Remove Devices with the same push_token_hash (if not empty), except
                 # current sessions.
                 if push_token_hash:
-                    await APP_SESSIONS_STORAGE.remove_all_with_push_token_hash(
+                    APP_SESSIONS_STORAGE.remove_all_with_push_token_hash(
                         push_token_hash,
                         app_session_id,
                     )
                 # Update push_session_id and push_token_hash.
-                await APP_SESSIONS_STORAGE.update_push_session(app_session_id, push_session_id, push_token_hash)
+                APP_SESSIONS_STORAGE.update_push_session(app_session_id, push_session_id, push_token_hash)
                 return push_session_id
 
             if resp.status == statuses.HTTP_400_BAD_REQUEST:
