@@ -3,12 +3,13 @@ from .models import PushData
 import threading
 from typing import List
 
-from ..const import LOGGER
+from ..domika_logger import LOGGER
 
 
 class PushDataStorage:
     def __init__(self):
         """ Use a dictionary to index by (app_session_id, entity_id, attribute) for fast lookups """
+        LOGGER.finest("PushDataStorage init")
         self.storage = {}
         self.lock = threading.Lock()
 
@@ -18,19 +19,15 @@ class PushDataStorage:
 
     def insert(self, push_data: PushData):
         """ Insert PushData into the storage. Replace if the new data has a later timestamp. """
+        LOGGER.finer("PushDataStorage.insert push_data: %s", push_data)
         key = self._get_key(push_data)
         with self.lock:
             existing_data = self.storage.get(key)
             if existing_data is None or push_data.timestamp > existing_data.timestamp:
+                LOGGER.finest("PushDataStorage.insert push_data: %s, updated", push_data)
                 self.storage[key] = push_data
-
-    def get_by_app_session_id(self, app_session_id: str) -> List[PushData]:
-        """ Get all PushData objects for a given app_session_id. """
-        with self.lock:
-            return [
-                push_data for (stored_app_session_id, _, _), push_data in self.storage.items()
-                if stored_app_session_id == app_session_id
-            ]
+            else:
+                LOGGER.finest("PushDataStorage.insert push_data: %s, skipped", push_data)
 
     def decrease_delay(self):
         """
@@ -78,7 +75,9 @@ class PushDataStorage:
 
     def get_all_sorted(self) -> List[PushData]:
         """ Retrieve all PushData objects ordered by app_session_id and entity_id. """
-        return sorted(self.storage.values(), key=lambda x: (x.push_session_id, x.entity_id))
+        res = sorted(self.storage.values(), key=lambda x: (x.push_session_id, x.entity_id))
+        LOGGER.finest("PushDataStorage.get_all_sorted res: %s", res)
+        return res
 
     def process_entity_changes(
             self,
@@ -109,6 +108,17 @@ class PushDataStorage:
         - changed_entity_id: The entity_id of the changed entity.
         - changed_attributes: A dictionary {attribute: new_value}.
         """
+        LOGGER.finest("PushDataStorage.process_entity_changes push_subscriptions: %s, changed_entity_id: %s "
+                      "changed_attributes: %s, event_id: %s, timestamp: %s, context_id: %s, delay: %s",
+                      push_subscriptions,
+                      changed_entity_id,
+                      changed_attributes,
+                      event_id,
+                      timestamp,
+                      context_id,
+                      delay
+                      )
+        LOGGER.finest("PushDataStorage.process_entity_changes push_data at the start: %s", self.storage)
         for app_session_id, data in push_subscriptions.get(changed_entity_id, {}).items():
             push_session_id = data.get('push_session_id')
             if not push_session_id:
@@ -127,6 +137,7 @@ class PushDataStorage:
                 )
                 # Insert PushData into storage
                 self.insert(push_data)
+        LOGGER.finest("PushDataStorage.process_entity_changes push_data at the end: %s", self.storage)
 
     def __str__(self):
         return "\n".join(str(data) for data in self.storage.values())

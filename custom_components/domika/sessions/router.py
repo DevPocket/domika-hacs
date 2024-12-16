@@ -22,7 +22,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from ..const import DOMAIN, LOGGER, PUSH_SERVER_TIMEOUT, PUSH_SERVER_URL
+from ..const import DOMAIN, PUSH_SERVER_TIMEOUT, PUSH_SERVER_URL
+from ..domika_logger import LOGGER
 from ..storage import APP_SESSIONS_STORAGE
 from .. import errors, push_server_errors
 from . import flow as sessions_flow
@@ -71,8 +72,12 @@ async def _get_hass_network_properties(hass: HomeAssistant) -> dict:
         "certificate_fingerprint": certificate_fingerprint,
     }
 
+    result = {k: v for k, v in result.items() if v is not None}
+
+    LOGGER.finer("_get_hass_network_properties, result: %s", result)
+
     # Return without none values.
-    return {k: v for k, v in result.items() if v is not None}
+    return result
 
 
 def _get_entry(hass: HomeAssistant) -> ConfigEntry | None:
@@ -86,10 +91,17 @@ def _check_app_compatibility(
         app_id: str,
         app_version: str,
 ) -> bool:
-    del os_platform
-    del os_version
-    del app_id
-    return app_version != "0"
+    res = app_version != "0"
+
+    if not res:
+        LOGGER.error("Incompatible app connecting, os_platform: %s, os_version: %s, app_id: %s, app_version: %s",
+                     os_platform,
+                     os_version,
+                     app_id,
+                     app_version
+                     )
+    LOGGER.finest("_check_app_compatibility, res: %s", res)
+    return res
 
 
 @websocket_command(
@@ -115,7 +127,7 @@ async def websocket_domika_update_app_session(
         LOGGER.error('Got websocket message "update_app_session", msg_id is missing')
         return
 
-    LOGGER.debug('Got websocket message "update_app_session", data: %s', msg)
+    LOGGER.verbose('Got websocket message "update_app_session", data: %s', msg)
 
     # Check that the app is compatible with current version.
     os_platform: str = msg.get("os_platform", "")
@@ -140,7 +152,7 @@ async def websocket_domika_update_app_session(
             connection.user.id,
             push_token_hash,
         )
-        LOGGER.info('Successfully updated app session id "%s"', app_session_id)
+        LOGGER.debug('Successfully updated app session id "%s"', app_session_id)
 
         result = {
             "app_session_id": app_session_id,
@@ -149,7 +161,7 @@ async def websocket_domika_update_app_session(
         result.update(await _get_hass_network_properties(hass))
 
         connection.send_result(msg_id, result)
-        LOGGER.debug("Update_app_session msg_id=%s data=%s", msg_id, result)
+        LOGGER.trace("Update_app_session msg_id=%s data=%s", msg_id, result)
 
 
 async def _update_app_session(
@@ -165,8 +177,7 @@ async def _update_app_session(
         if app_session.user_id == user_id:
             new_app_session_id = app_session_id
             APP_SESSIONS_STORAGE.update_last_update(app_session_id)
-            LOGGER.debug(
-                "_update_app_session app_session found: %s, updating last_update",
+            LOGGER.verbose("_update_app_session app_session found: %s, updating last_update",
                 new_app_session_id,
             )
         else:
@@ -178,8 +189,7 @@ async def _update_app_session(
             APP_SESSIONS_STORAGE.remove(app_session_id)
     if not new_app_session_id:
         new_app_session_id = APP_SESSIONS_STORAGE.create(user_id, push_token_hash)
-        LOGGER.debug(
-            "_update_app_session new app_session_id created: %s.",
+        LOGGER.verbose("_update_app_session new app_session_id created: %s.",
             new_app_session_id,
         )
     result_old_app_sessions: list[str] = []
@@ -188,7 +198,7 @@ async def _update_app_session(
         if new_app_session_id in result_old_app_sessions:
             result_old_app_sessions.remove(new_app_session_id)
     if result_old_app_sessions:
-        LOGGER.debug(
+        LOGGER.trace(
             "_update_app_session result_old_app_sessions: %s.",
             result_old_app_sessions,
         )
@@ -208,25 +218,19 @@ async def _check_push_token(
                 "d.type": "push_activation",
                 "push_activation_success": True,
             }
-            LOGGER.info('Push token hash "%s" check. OK', push_token_hash)
+            LOGGER.debug('Push token hash "%s" check. OK', push_token_hash)
         else:
             event_result = {
                 "d.type": "push_activation",
                 "push_activation_success": False,
             }
-            LOGGER.info(
-                'Push token hash "%s" check. Need validation',
-                push_token_hash,
-            )
+            LOGGER.verbose('Push token hash "%s" check. Need validation', push_token_hash)
     else:
         event_result = {
             "d.type": "push_activation",
             "push_activation_success": False,
         }
-        LOGGER.info(
-            'Push token hash "%s" check. Device not found',
-            push_token_hash,
-        )
+        LOGGER.verbose('Push token hash "%s" check. Device not found', push_token_hash)
 
     hass.bus.async_fire(f"domika_{app_session_id}", event_result)
 
@@ -250,11 +254,11 @@ async def websocket_domika_update_push_token(
         LOGGER.error('Got websocket message "update_push_token", msg_id is missing')
         return
 
-    LOGGER.debug('Got websocket message "update_push_token", data: %s', msg)
+    LOGGER.verbose('Got websocket message "update_push_token", data: %s', msg)
 
     # Fast send reply.
     connection.send_result(msg_id, {"result": "accepted"})
-    LOGGER.debug("Update_push_token msg_id=%s data=%s", msg_id, {"result": "accepted"})
+    LOGGER.trace("Update_push_token msg_id=%s data=%s", msg_id, {"result": "accepted"})
 
     entry = _get_entry(hass)
     if not entry:
@@ -280,9 +284,9 @@ async def _remove_push_session(hass: HomeAssistant, app_session_id: str) -> None
             PUSH_SERVER_URL,
             ClientTimeout(total=PUSH_SERVER_TIMEOUT),
         )
-        LOGGER.info('Push session "%s" successfully removed', push_session_id)
+        LOGGER.debug('Push session "%s" successfully removed', push_session_id)
     except errors.AppSessionIdNotFoundError as e:
-        LOGGER.info(
+        LOGGER.warning(
             'Can\'t remove push session. Application with id "%s" not found',
             e.app_session_id,
         )
@@ -297,7 +301,7 @@ async def _remove_push_session(hass: HomeAssistant, app_session_id: str) -> None
     except push_server_errors.DomikaPushServerError as e:
         LOGGER.error("Can't remove push session. Push server error. %s", e)
     except Exception:  # noqa: BLE001
-        LOGGER.exception("Can't remove push session. Unhandled error")
+        LOGGER.error("Can't remove push session. Unhandled error")
 
 
 @websocket_command(
@@ -318,19 +322,16 @@ async def websocket_domika_remove_push_session(
         LOGGER.error('Got websocket message "remove_push_session", msg_id is missing')
         return
 
-    LOGGER.debug('Got websocket message "remove_push_session", data: %s', msg)
+    LOGGER.verbose('Got websocket message "remove_push_session", data: %s', msg)
 
     # Fast send reply.
-    connection.send_result(msg_id, {"result": "accepted"})
-    LOGGER.debug(
-        "Remove_push_session msg_id=%s data=%s",
-        msg_id,
-        {"result": "accepted"},
-    )
+    res = {"result": "accepted"}
+    connection.send_result(msg_id, res)
+    LOGGER.trace("Remove_push_session msg_id=%s data=%s", msg_id, res)
 
     entry = _get_entry(hass)
     if not entry:
-        LOGGER.debug("Remove_push_session Error. Entry not found")
+        LOGGER.warning("Remove_push_session Error. Entry not found")
         return
 
     entry.async_create_task(
@@ -359,7 +360,7 @@ async def _create_push_session(
             PUSH_SERVER_URL,
             ClientTimeout(total=PUSH_SERVER_TIMEOUT),
         )
-        LOGGER.info(
+        LOGGER.debug(
             "Push session creation process successfully initialized. "
             'original_transaction_id="%s", platform="%s", environment="%s", '
             'push_token="%s", app_session_id="%s" ',
@@ -394,7 +395,7 @@ async def _create_push_session(
             e,
         )
     except Exception:  # noqa: BLE001
-        LOGGER.exception(
+        LOGGER.error(
             "Can't initialize push session creation. "
             'original_transaction_id="%s", platform="%s", environment="%s", '
             'push_token="%s", app_session_id="%s" Unhandled error',
@@ -428,11 +429,11 @@ async def websocket_domika_update_push_session(
         LOGGER.error('Got websocket message "update_push_session", msg_id is missing')
         return
 
-    LOGGER.debug('Got websocket message "update_push_session", data: %s', msg)
+    LOGGER.verbose('Got websocket message "update_push_session", data: %s', msg)
 
     # Fast send reply.
     connection.send_result(msg_id, {"result": "accepted"})
-    LOGGER.debug(
+    LOGGER.trace(
         "Update_push_session msg_id=%s data=%s",
         msg_id,
         {"result": "accepted"},
@@ -440,7 +441,7 @@ async def websocket_domika_update_push_session(
 
     entry = _get_entry(hass)
     if not entry:
-        LOGGER.debug("Update_push_session Error. Entry not found")
+        LOGGER.warning("Update_push_session Error. Entry not found")
         return
 
     entry.async_create_task(
@@ -448,7 +449,7 @@ async def websocket_domika_update_push_session(
         _create_push_session(
             hass,
             cast(str, msg.get("original_transaction_id")),
-            cast(str, msg.get("platform")),
+            cast(str, "platform"),
             cast(str, msg.get("environment")),
             cast(str, msg.get("push_token_hex")),
             cast(str, msg.get("app_session_id")),
@@ -462,14 +463,14 @@ async def _remove_app_session(hass: HomeAssistant, app_session_id: str) -> None:
         await _remove_push_session(hass, app_session_id)
 
         APP_SESSIONS_STORAGE.remove(app_session_id)
-        LOGGER.info('App session "%s" successfully removed', app_session_id)
+        LOGGER.debug('App session "%s" successfully removed', app_session_id)
     except errors.AppSessionIdNotFoundError as e:
         LOGGER.error(
             'Can\'t remove app session. Application with id "%s" not found',
             e.app_session_id,
         )
     except Exception:  # noqa: BLE001
-        LOGGER.exception("Can't remove app session. Unhandled error")
+        LOGGER.error("Can't remove app session. Unhandled error")
 
 
 @websocket_command(
@@ -490,15 +491,15 @@ async def websocket_domika_remove_app_session(
         LOGGER.error('Got websocket message "remove_app_session", msg_id is missing')
         return
 
-    LOGGER.debug('Got websocket message "remove_app_session", data: %s', msg)
+    LOGGER.verbose('Got websocket message "remove_app_session", data: %s', msg)
 
     # Fast send reply.
     connection.send_result(msg_id, {"result": "accepted"})
-    LOGGER.debug("remove_app_session msg_id=%s data=%s", msg_id, {"result": "accepted"})
+    LOGGER.trace("remove_app_session msg_id=%s data=%s", msg_id, {"result": "accepted"})
 
     entry = _get_entry(hass)
     if not entry:
-        LOGGER.debug("Remove_app_session Error. Entry not found")
+        LOGGER.warning("Remove_app_session Error. Entry not found")
         return
 
     entry.async_create_task(
@@ -523,7 +524,7 @@ async def _verify_push_session(
             PUSH_SERVER_URL,
             ClientTimeout(total=PUSH_SERVER_TIMEOUT),
         )
-        LOGGER.info(
+        LOGGER.debug(
             'Verification key "%s" for application "%s" successfully verified. '
             'New push session id "%s". Push token hash "%s"',
             verification_key,
@@ -560,7 +561,7 @@ async def _verify_push_session(
             e,
         )
     except Exception:  # noqa: BLE001
-        LOGGER.exception(
+        LOGGER.error(
             'Can\'t verify verification key "%s" for application "%s". '
             'Push token hash "%s". Unhandled error',
             verification_key,
@@ -589,11 +590,11 @@ async def websocket_domika_verify_push_session(
         LOGGER.error('Got websocket message "verify_push_session", msg_id is missing')
         return
 
-    LOGGER.debug('Got websocket message "verify_push_session", data: %s', msg)
+    LOGGER.verbose('Got websocket message "verify_push_session", data: %s', msg)
 
     # Fast send reply.
     connection.send_result(msg_id, {"result": "accepted"})
-    LOGGER.debug(
+    LOGGER.trace(
         "Verify_push_session msg_id=%s data=%s",
         msg_id,
         {"result": "accepted"},

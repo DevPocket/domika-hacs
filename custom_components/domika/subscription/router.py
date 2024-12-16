@@ -10,7 +10,7 @@ from homeassistant.components.websocket_api import (
 )
 from homeassistant.core import HomeAssistant
 
-from ..const import LOGGER
+from ..domika_logger import LOGGER
 from ..storage import APP_SESSIONS_STORAGE
 from ..push_data_storage.pushdatastorage import PUSHDATA_STORAGE
 from ..utils import flatten_json
@@ -35,7 +35,7 @@ async def websocket_domika_resubscribe(
         LOGGER.error('Got websocket message "resubscribe", msg_id is missing')
         return
 
-    LOGGER.debug('Got websocket message "resubscribe", data: %s', msg)
+    LOGGER.verbose('Got websocket message "resubscribe", data: %s', msg)
     app_session_id = msg.get("app_session_id")
 
     res_list = []
@@ -59,7 +59,9 @@ async def websocket_domika_resubscribe(
                 "Websocket_domika_resubscribe requesting state of unknown entity: %s",
                 entity_id,
             )
-    connection.send_result(msg_id, {"entities": res_list})
+    res = {"entities": res_list}
+    connection.send_result(msg_id, res)
+    LOGGER.trace("resubscribe msg_id=%s data=%s", msg_id, res)
 
     APP_SESSIONS_STORAGE.resubscribe(app_session_id, subscriptions)
     PUSHDATA_STORAGE.remove_by_app_session_id(app_session_id=app_session_id)

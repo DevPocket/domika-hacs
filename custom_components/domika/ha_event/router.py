@@ -10,7 +10,7 @@ from homeassistant.components.websocket_api import (
 )
 from homeassistant.core import HomeAssistant
 
-from ..const import LOGGER
+from ..domika_logger import LOGGER
 from ..push_data_storage.pushdatastorage import PUSHDATA_STORAGE
 
 
@@ -33,11 +33,11 @@ async def websocket_domika_confirm_events(
         LOGGER.error('Got websocket message "confirm_event", msg_id is missing')
         return
 
-    LOGGER.debug('Got websocket message "confirm_event", data: %s', msg)
+    LOGGER.verbose('Got websocket message "confirm_event", data: %s', msg)
 
     # Fast send reply.
     connection.send_result(msg_id, {"result": "accepted"})
-    LOGGER.debug("Confirm_event msg_id=%s data=%s", msg_id, {"result": "accepted"})
+    LOGGER.trace("Confirm_event msg_id=%s data=%s", msg_id, {"result": "accepted"})
 
     event_ids = cast(list[str], msg.get("event_ids"))
     app_session_id = msg.get("app_session_id")

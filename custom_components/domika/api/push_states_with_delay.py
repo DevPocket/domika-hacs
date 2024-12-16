@@ -9,7 +9,8 @@ from aiohttp import web
 from homeassistant.core import async_get_hass
 from homeassistant.helpers.http import HomeAssistantView
 
-from ..const import DOMAIN, LOGGER
+from ..const import DOMAIN
+from ..domika_logger import LOGGER
 from . import service as api_service
 from ..push_data_storage.pushdatastorage import PUSHDATA_STORAGE
 
@@ -22,6 +23,8 @@ class DomikaAPIPushStatesWithDelay(HomeAssistantView):
 
     async def post(self, request: web.Request) -> web.Response:
         """Post method."""
+        LOGGER.verbose("DomikaAPIPushStatesWithDelay called.")
+
         # Check that integration still loaded.
         hass = async_get_hass()
         if not hass.data.get(DOMAIN):
@@ -41,7 +44,7 @@ class DomikaAPIPushStatesWithDelay(HomeAssistantView):
         ignore_need_push = request_dict.get("ignore_need_push", False)
         need_push = None if ignore_need_push else True
 
-        LOGGER.debug(
+        LOGGER.trace(
             "DomikaAPIPushStatesWithDelay: request_dict: %s, app_session_id: %s",
             request_dict,
             app_session_id,
@@ -58,6 +61,6 @@ class DomikaAPIPushStatesWithDelay(HomeAssistantView):
         )
 
         data = {"entities": result}
-        LOGGER.debug("DomikaAPIPushStatesWithDelay data: %s", data)
+        LOGGER.fine("DomikaAPIPushStatesWithDelay data: %s", data)
 
         return self.json(data, HTTPStatus.OK)

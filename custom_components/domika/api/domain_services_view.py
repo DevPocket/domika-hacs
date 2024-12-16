@@ -9,7 +9,8 @@ from homeassistant.components.api import APIDomainServicesView
 from homeassistant.core import async_get_hass
 from homeassistant.helpers.json import json_bytes
 
-from ..const import DOMAIN, LOGGER
+from ..const import DOMAIN
+from ..domika_logger import LOGGER
 from . import service as api_service
 from ..push_data_storage.pushdatastorage import PUSHDATA_STORAGE
 
@@ -26,6 +27,8 @@ class DomikaAPIDomainServicesView(APIDomainServicesView):
         domain: str,
         service: str,
     ) -> web.Response:
+        LOGGER.verbose("DomikaAPIDomainServicesView called.")
+
         """Retrieve if API is running."""
         # Check that integration still loaded.
         hass = async_get_hass()
@@ -44,9 +47,8 @@ class DomikaAPIDomainServicesView(APIDomainServicesView):
 
         delay = float(request.headers.get("X-Delay", 0.5))
 
-        LOGGER.debug(
-            "DomikaAPIDomainServicesView, domain: %s, service: %s, app_session_id: %s, "
-            "delay: %s",
+        LOGGER.trace(
+            "DomikaAPIDomainServicesView, domain: %s, service: %s, app_session_id: %s, delay: %s",
             domain,
             service,
             app_session_id,
@@ -59,7 +61,7 @@ class DomikaAPIDomainServicesView(APIDomainServicesView):
 
         result = await api_service.get(app_session_id)
 
-        LOGGER.debug("DomikaAPIDomainServicesView data: %s", {"entities": result})
+        LOGGER.fine("DomikaAPIDomainServicesView data: %s", {"entities": result})
         data = json_bytes({"entities": result})
         response.body = data
         return response

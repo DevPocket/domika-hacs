@@ -3,7 +3,7 @@
 import json
 
 import aiohttp
-from ..const import LOGGER
+from ..domika_logger import LOGGER
 
 from .. import errors, push_server_errors, statuses
 from ..storage import APP_SESSIONS_STORAGE
@@ -34,6 +34,7 @@ async def remove_push_session(
         push_server_errors.UnexpectedServerResponseError: if push server response with
             unexpected status.
     """
+    LOGGER.finer("Sessions.remove_push_session started")
     app_session = APP_SESSIONS_STORAGE.get_app_session(app_session_id)
     if not app_session:
         raise errors.AppSessionIdNotFoundError(app_session_id)
@@ -57,7 +58,7 @@ async def remove_push_session(
         ):
             if resp.status == statuses.HTTP_204_NO_CONTENT:
                 LOGGER.debug(
-                    "Remove_push_session deleted: %s.",
+                    "Remove_push_session deleted: %s",
                     push_session_id,
                 )
                 return push_session_id
@@ -103,6 +104,7 @@ async def create_push_session(
         push_server_errors.UnexpectedServerResponseError: if push server response with
             unexpected status.
     """
+    LOGGER.finer("Sessions.create_push_session started")
     if not (
             original_transaction_id
             and push_token
@@ -128,6 +130,7 @@ async def create_push_session(
             ) as resp,
         ):
             if resp.status == statuses.HTTP_202_ACCEPTED:
+                LOGGER.finer("Sessions.create_push_session sent to push server")
                 return
 
             if resp.status == statuses.HTTP_400_BAD_REQUEST:
@@ -169,6 +172,7 @@ async def verify_push_session(
             unexpected status.
         push_server_errors.ResponseError: if push server response with malformed data.
     """
+    LOGGER.finer("Sessions.verify_push_session started")
     if not verification_key:
         msg = "One of the parameters is missing"
         raise ValueError(msg)

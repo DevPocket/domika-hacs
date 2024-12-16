@@ -12,12 +12,12 @@ from .models import AppSession, Subscription, Sessions
 from homeassistant.helpers.storage import Store
 from ..const import (
     DOMAIN,
-    LOGGER,
     DEVICE_INACTIVITY_TIME_THRESHOLD,
     DEVICE_INACTIVITY_CHECK_INTERVAL,
     APP_SESSIONS_STORAGE_DEFAULT_WRITE_DELAY
 )
 from ..utils import ReadWriteLock
+from ..domika_logger import LOGGER
 
 STORAGE_VERSION_APP_SESSIONS = 1
 STORAGE_KEY_APP_SESSIONS = f"{DOMAIN}/app_sessions_storage.json"
@@ -47,9 +47,9 @@ class AppSessionsStore(Store[dict[str, Any]]):
             old_data: dict[str, Any]
     ) -> dict[str, Any]:
         """Migrate to the new version."""
-        LOGGER.debug("---> Migrating users_data")
+        LOGGER.debug("AppSessionsStorage Migrating users_data")
         if old_major_version > STORAGE_VERSION_APP_SESSIONS:
-            raise ValueError("Can't migrate to future version")
+            raise ValueError("AppSessionsStorage can't migrate to future version")
         # Not implemented yet.
         if old_major_version == 1:
             pass
@@ -59,6 +59,7 @@ class AppSessionsStore(Store[dict[str, Any]]):
 
 class AppSessionsStorage:
     def __init__(self):
+        LOGGER.fine("AppSessionsStorage init started")
         self._store = None
         self._data: dict[str, Any] = {}
         self._push_subscriptions: dict[str, Any] = {}
@@ -66,6 +67,7 @@ class AppSessionsStorage:
         self.rw_lock = ReadWriteLock()  # Read-write lock
 
     async def load_data(self, hass):
+        LOGGER.fine("AppSessionsStorage load_data started")
         self.rw_lock.acquire_write()
         try:
             self._store = AppSessionsStore(
@@ -75,8 +77,21 @@ class AppSessionsStorage:
             if data := await self._store.async_load():
                 self._data = data
                 self._update_subscriptions_caches()
-            LOGGER.debug("Loaded data from app sessions store: %s", self._data)
+            LOGGER.finer("AppSessionsStorage loaded data from app sessions store: %s", self._data)
         finally:
+            self.rw_lock.release_write()
+
+    async def delete_storage(self):
+        LOGGER.fine("AppSessionsStorage delete_storage started")
+        self.rw_lock.acquire_write()
+        try:
+            if self._store:
+                await self._store.async_remove()
+        finally:
+            self._store = None
+            self._data = {}
+            self._push_subscriptions = {}
+            self._all_subscriptions = {}
             self.rw_lock.release_write()
 
     def _save_app_sessions_data(self, delay=APP_SESSIONS_STORAGE_DEFAULT_WRITE_DELAY):
@@ -84,14 +99,18 @@ class AppSessionsStorage:
             self.rw_lock.acquire_write()
             try:
                 # TODO: Do we need this here? How do we protect from saving data while other thread is changing it?
+                data_copy = copy.deepcopy(self._data)
+                LOGGER.finest("AppSessionsStorage _save_app_sessions_data provided data: %s", data_copy)
                 return copy.deepcopy(self._data)
             finally:
                 self.rw_lock.release_write()
 
+        LOGGER.finest("AppSessionsStorage _save_app_sessions_data started, delay: %s", delay)
         if self._store:
             self._store.async_delay_save(provide_data, delay)
 
     def push_subscriptions(self) -> dict:
+        LOGGER.finest("AppSessionsStorage push_subscriptions returned: %s", self._push_subscriptions)
         return self._push_subscriptions
 
     def _get_subscription_cache(
@@ -111,6 +130,7 @@ class AppSessionsStorage:
             ……
         }
         """
+        LOGGER.finest("AppSessionsStorage _get_subscription_cache started, data: %s", self._data)
         res = {}
 
         for app_session_id, session_data in self._data.items():
@@ -142,6 +162,7 @@ class AppSessionsStorage:
                 # Add the attribute to the list
                 res[entity_id][app_session_id]["attributes"].add(attribute)
 
+        LOGGER.finest("AppSessionsStorage _get_subscription_cache, res: %s", res)
         return res
 
     def _update_subscriptions_caches(self):
@@ -208,11 +229,12 @@ class AppSessionsStorage:
         self.rw_lock.acquire_write()
         try:
             if data := self._data.get(app_session_id):
-                data['push_session_id'] = None
-                LOGGER.info(
-                    'Push session for app session "%s" successfully removed',
-                    app_session_id,
+                LOGGER.finer(
+                    'AppSessionsStorage: push session "%s" for app_session_id "%s" successfully removed',
+                    data.get('push_session_id'),
+                    app_session_id
                 )
+                data['push_session_id'] = None
             self._update_subscriptions_caches()
         finally:
             self.rw_lock.release_write()
@@ -279,10 +301,10 @@ class AppSessionsStorage:
             data = self._data.get(app_session_id)
 
             if not data or not data.get("subscriptions"):
-                LOGGER.debug(
-                    "app_session_resubscribe_push: Can't update subscriptions for app_session_id: %s data: %s",
-                    app_session_id, self._data
-                )
+                LOGGER.verbose("AppSessionsStorage.app_session_resubscribe_push: "
+                               "Can't update subscriptions for app_session_id: %s data: %s",
+                               app_session_id, self._data
+                              )
                 return
 
             current_subs = data["subscriptions"]
@@ -307,14 +329,17 @@ class AppSessionsStorage:
             subscriptions: dict[str, dict[str, int]]
     ):
         if not subscriptions:
-            LOGGER.error("app_session_resubscribe: Received empty or None subscriptions.")
+            LOGGER.debug("AppSessionsStorage.app_session_resubscribe: Received empty or None subscriptions.")
             return
 
         self.rw_lock.acquire_write()
         try:
             data = self._data.get(app_session_id)
             if not data:
-                LOGGER.error("app_session_resubscribe: No record found for app_session_id: %s", app_session_id)
+                LOGGER.debug("AppSessionsStorage.app_session_resubscribe: "
+                             "No record found for app_session_id: %s",
+                             app_session_id
+                             )
                 return
 
             # Create new subscriptions
@@ -401,6 +426,7 @@ class AppSessionsStorage:
         ]
 
     def delete_inactive(self, threshold):
+        LOGGER.trace("AppSessionsStorage.delete_inactive started")
         self.rw_lock.acquire_write()
         try:
             for app_session_id, data in self._data.items():
@@ -409,6 +435,8 @@ class AppSessionsStorage:
                 if last_update_int is None:
                     # No last_update timestamp, updating it
                     self._update_last_update(app_session_id)
+                    LOGGER.finer("AppSessionsStorage.delete_inactive: no last_update timestamp for app_session_id: %s",
+                                 app_session_id)
                     continue
 
                 try:
@@ -424,6 +452,8 @@ class AppSessionsStorage:
 
                 if datetime.now() - last_update > threshold:
                     self._data.pop(app_session_id, None)
+                    LOGGER.trace("AppSessionsStorage.delete_inactive: removed app_session_id: %s",
+                                 app_session_id)
             self._update_subscriptions_caches()
         finally:
             self.rw_lock.release_write()
@@ -442,7 +472,7 @@ class AppSessionsStorage:
                         DEVICE_INACTIVITY_TIME_THRESHOLD,
                     )
                 except Exception:  # noqa: BLE001
-                    LOGGER.exception("Inactive sessions cleaner error")
+                    LOGGER.error("Inactive sessions cleaner error")
                 await asyncio.sleep(DEVICE_INACTIVITY_CHECK_INTERVAL.total_seconds())
         except asyncio.CancelledError as e:
             LOGGER.debug("Inactive sessions cleaner stopped. %s", e)

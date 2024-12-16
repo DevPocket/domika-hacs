@@ -18,12 +18,12 @@ from homeassistant.core import (
 from .. import statuses, push_server_errors
 from ..const import (
     CRITICAL_PUSH_ALERT_STRINGS,
-    LOGGER,
     PUSH_DELAY_DEFAULT,
     PUSH_DELAY_FOR_DOMAIN,
     PUSH_SERVER_TIMEOUT,
     PUSH_SERVER_URL,
 )
+from ..domika_logger import LOGGER
 from ..critical_sensor import service as critical_sensor_service
 from ..critical_sensor.enums import NotificationType
 from ..push_data_storage.pushdatastorage import PUSHDATA_STORAGE
@@ -40,8 +40,8 @@ async def register_event(
     entity_id = event_data["entity_id"]
     attributes = _get_changed_attributes_from_event_data(event_data)
 
-    LOGGER.debug(
-        "Got event for entity: %s, attributes: %s, time fired: %s",
+    LOGGER.trace(
+        "register_event entity_id: %s, attributes: %s, time fired: %s",
         entity_id,
         attributes,
         event.time_fired,
@@ -55,6 +55,11 @@ async def register_event(
         hass,
         entity_id,
         NotificationType.ANY,
+    )
+    LOGGER.fine(
+        "register_event entity_id: %s, notification_required: %s",
+        entity_id,
+        notification_required
     )
 
     # Fire event for application if important sensor changed it's state.
@@ -75,12 +80,22 @@ async def register_event(
         _get_critical_alert_payload(hass, entity_id) if critical_push_needed else {}
     )
 
+    LOGGER.finest(
+        "register_event entity_id: %s, critical_push_needed: %s, critical_alert_payload: %s",
+        entity_id,
+        critical_push_needed,
+        critical_alert_payload
+    )
     # Get application id's associated with attributes.
     app_session_ids = APP_SESSIONS_STORAGE.get_app_sessions_for_event(
         entity_id=entity_id,
         attributes=list(attributes.keys())
     )
-
+    LOGGER.finest(
+        "register_event entity_id: %s, app_session_ids: %s",
+        entity_id,
+        app_session_ids
+    )
     # If any app_session_ids are subscribed for these attributes - fire the event
     # to those app_session_ids for app to catch.
     if app_session_ids:
@@ -95,6 +110,11 @@ async def register_event(
 
     # Process event to push_data_storage
     delay = await _get_delay_by_entity_id(hass, entity_id)
+    LOGGER.finest(
+        "register_event entity_id: %s, delay: %s",
+        entity_id,
+        delay
+    )
     PUSHDATA_STORAGE.process_entity_changes(
         push_subscriptions=APP_SESSIONS_STORAGE.push_subscriptions(),
         changed_entity_id=entity_id,
@@ -111,6 +131,11 @@ async def register_event(
         # TODO: remove!
         # await process_push_data(hass)
 
+        LOGGER.finest(
+            "register_event entity_id: %s, app_sessions_with_push_session: %s",
+            entity_id,
+            app_sessions_with_push_session
+        )
         for item in app_sessions_with_push_session:
             await _send_push_data(
                 async_get_clientsession(hass),
@@ -153,7 +178,7 @@ async def process_push_data(hass: HomeAssistant) -> None:
         push_server_errors.UnexpectedServerResponseError: if push server response with
             unexpected status.
     """
-    LOGGER.debug("Push_registered_events started.")
+    LOGGER.debug("process_push_data started")
 
     PUSHDATA_STORAGE.decrease_delay()
     push_data_records = PUSHDATA_STORAGE.get_all_sorted()
@@ -244,11 +269,11 @@ async def _send_push_data(
         *,
         critical: bool = False,
 ) -> None:
-    LOGGER.debug(
-        "Push events %sto %s. %s",
-        "(critical) " if critical else "",
+    LOGGER.verbose("Push events %s to push_session %s (app_session %s). %s",
+        "(critical)" if critical else " ",
         push_session_id,
-        payload,
+        app_session_id,
+        payload
     )
 
     try:
@@ -305,9 +330,7 @@ def _fire_critical_sensor_notification(
     # Fetch state for all levels of critical binary sensors.
     sensors_data = critical_sensor_service.get(hass, NotificationType.ANY)
     # Fire the event for app.
-    LOGGER.debug(
-        "Fire domika_critical_sensors_changed"
-    )
+    LOGGER.verbose("_fire_critical_sensor_notification started")
     hass.bus.async_fire(
         "domika_critical_sensors_changed",
         sensors_data.to_dict(),
@@ -325,6 +348,12 @@ def _fire_event_to_app_session_ids(
         attributes: dict,
         app_session_ids: Iterable[str],
 ) -> None:
+    LOGGER.verbose("_fire_event_to_app_session_ids started, app_session_ids: %s, event_id: %s, entity_id: %s, attributes: %s",
+        app_session_ids,
+        event_id,
+        entity_id,
+        attributes
+    )
     dict_attributes = attributes
     dict_attributes["d.type"] = "state_changed"
     dict_attributes["event_id"] = event_id
@@ -336,6 +365,15 @@ def _fire_event_to_app_session_ids(
             event.origin,
             event.context,
             event.time_fired.timestamp(),
+        )
+        LOGGER.finest(
+            "_fire_event_to_app_session_ids event fired: %s, dict_attributes: %s, "
+            "event.origin: %s, event.context: %s, timestamp: %s",
+            f"domika_{app_session_id}",
+            dict_attributes,
+            event.origin,
+            event.context,
+            event.time_fired.timestamp()
         )
 
 

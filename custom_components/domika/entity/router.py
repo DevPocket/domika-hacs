@@ -11,7 +11,7 @@ from homeassistant.components.websocket_api import (
 )
 from homeassistant.core import HomeAssistant, callback
 
-from ..const import LOGGER
+from ..domika_logger import LOGGER
 from ..utils import flatten_json
 from .service import get, get_single
 
@@ -34,14 +34,14 @@ def websocket_domika_entity_list(
         LOGGER.error('Got websocket message "entity_list", msg_id is missing')
         return
 
-    LOGGER.debug('Got websocket message "entity_list", data: %s', msg)
+    LOGGER.verbose('Got websocket message "entity_list", data: %s', msg)
 
     domains_list = cast(list[str], msg.get("domains"))
     entities = get(hass, domains_list)
     result = entities.to_dict()
 
     connection.send_result(msg_id, result)
-    LOGGER.debug("Entity_list msg_id=%s", msg_id)
+    LOGGER.trace("Entity_list msg_id=%s", msg_id)
 
 
 @websocket_command(
@@ -62,14 +62,14 @@ def websocket_domika_entity_info(
         LOGGER.error('Got websocket message "entity_info", msg_id is missing')
         return
 
-    LOGGER.debug('Got websocket message "entity_info", data: %s', msg)
+    LOGGER.verbose('Got websocket message "entity_info", data: %s', msg)
 
     entity_id = cast(str, msg.get("entity_id"))
     entity = get_single(hass, entity_id)
     result = entity.to_dict() if entity else {}
 
     connection.send_result(msg_id, result)
-    LOGGER.debug("Entity_info msg_id=%s data=%s", msg_id, result)
+    LOGGER.trace("Entity_info msg_id=%s data=%s", msg_id, result)
 
 
 @websocket_command(
@@ -90,7 +90,7 @@ async def websocket_domika_entity_state(
         LOGGER.error('Got websocket message "entity_state", msg_id is missing')
         return
 
-    LOGGER.debug('Got websocket message "entity_state", data: %s', msg)
+    LOGGER.verbose('Got websocket message "entity_state", data: %s', msg)
 
     entity_id = cast(str, msg.get("entity_id"))
     state = hass.states.get(entity_id)
@@ -108,9 +108,7 @@ async def websocket_domika_entity_state(
             },
         )
     else:
-        LOGGER.error(
-            "Entity_state requesting state of unknown entity: %s",
-            entity_id,
-        )
+        LOGGER.debug("Entity_state requesting state of unknown entity: %s", entity_id)
+
     connection.send_result(msg_id, result)
-    LOGGER.debug("Entity_state msg_id=%s data=%s", msg_id, result)
+    LOGGER.trace("Entity_state msg_id=%s data=%s", msg_id, result)

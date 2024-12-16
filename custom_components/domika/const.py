@@ -1,14 +1,18 @@
 """Domika constants."""
 
 from datetime import timedelta
-import logging
 import os
 
 from homeassistant.components import binary_sensor, sensor
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 
 DOMAIN = "domika"
-LOGGER = logging.getLogger(__package__)
+
+# None = DEBUG
+# DOMIKA_LOG_LEVEL = None
+# Reserved for future use
+DOMIKA_LOG_LEVEL = 'VERBOSE'
+
 
 DB_DIALECT = "sqlite"
 DB_DRIVER = "aiosqlite"

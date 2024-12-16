@@ -11,8 +11,9 @@ from homeassistant.components.websocket_api import (
 )
 from homeassistant.core import HomeAssistant
 
-from ..const import LOGGER
+from ..domika_logger import LOGGER
 from ..storage import USERS_STORAGE, APP_SESSIONS_STORAGE
+from ..storage.models import UsersData
 
 
 async def _store_value(
@@ -29,17 +30,22 @@ async def _store_value(
 
         for app_session in app_session_ids:
             if app_session != app_session_id:
-                hass.bus.async_fire(
-                    f"domika_{app_session}",
-                    {
+                data = {
                         "d.type": "key_value_update",
                         "key": key,
                         "hash": value_hash,
-                    },
+                    }
+                hass.bus.async_fire(
+                    f"domika_{app_session}",
+                    data
                 )
-
+                LOGGER.finest(
+                    "key_value._store_value event fired: %s, data: %s"
+                    f"domika_{app_session}",
+                    data
+                )
     except Exception:  # noqa: BLE001
-        LOGGER.exception(
+        LOGGER.error(
             'Can\'t update value for key: %s, user "%s". Unhandled error',
             key,
             user_id,
@@ -67,20 +73,15 @@ async def websocket_domika_store_value(
         LOGGER.error('Got websocket message "store_value", msg_id is missing')
         return
 
-    LOGGER.debug(
-        'Got websocket message "store_value", user: "%s", key: %s, hash: %s',
-        connection.user.id,
-        msg.get("key"),
-        msg.get("hash"),
-    )
+    LOGGER.verbose('Got websocket message "store_value", data: %s', msg)
 
     # Fast send reply.
     connection.send_result(msg_id, {"result": "accepted"})
-    LOGGER.debug("store_value msg_id=%s data=%s", msg_id, {"result": "accepted"})
+    LOGGER.trace("store_value msg_id=%s data=%s", msg_id, {"result": "accepted"})
 
     key: str | None = msg.get("key")
     if key is None:
-        LOGGER.error('Got websocket message "store_value", key is missing')
+        LOGGER.error('Got websocket message "store_value", msg_id=%s: key is missing', msg_id)
         return
 
     value: str = msg.get("value", "")
@@ -93,7 +94,7 @@ async def websocket_domika_store_value(
 def _get_value(
     key: str,
     user_id: str,
-) -> Tuple[str, str] | None:
+) -> UsersData | None:
     return USERS_STORAGE.get_users_data(user_id=user_id, key=key)
 
 
@@ -115,27 +116,23 @@ async def websocket_domika_get_value(
         LOGGER.error('Got websocket message "get_value", msg_id is missing')
         return
 
-    LOGGER.debug(
-        'Got websocket message "get_value", user: "%s", key: %s',
-        connection.user.id,
-        msg.get("key"),
-    )
+    LOGGER.verbose('Got websocket message "get_value", data: %s', msg)
 
     key: str | None = msg.get("key")
     if key is None:
-        LOGGER.error('Got websocket message "get_value", key is missing')
+        LOGGER.error('Got websocket message "get_value", msg_id=%s: key is missing', msg_id)
         return
 
-    value_valuehash: Tuple[str, str] | None = _get_value(key, connection.user.id)
+    users_data: UsersData | None = _get_value(key, connection.user.id)
     result = (
-        {"key": key, "value": value_valuehash[0], "hash": value_valuehash[1]}
-        if value_valuehash
+        {"key": key, "value": users_data.value, "hash": users_data.value_hash}
+        if users_data
         else {}
     )
 
     connection.send_result(msg_id, result)
-    LOGGER.debug("get_value msg_id=%s key=%s hash=%s", msg_id, key, value_valuehash[1] if value_valuehash else "None")
-    # LOGGER.debug("get_value msg_id=%s data=%s", msg_id, result)
+    LOGGER.trace("get_value msg_id=%s key=%s hash=%s", msg_id, key, users_data.value_hash if users_data else "None")
+    LOGGER.fine("get_value msg_id=%s value=%s", msg_id, users_data.value if users_data else "None")
 
 
 @websocket_command(
@@ -156,8 +153,7 @@ async def websocket_domika_get_value_hash(
         LOGGER.error('Got websocket message "get_value_hash", msg_id is missing')
         return
 
-    LOGGER.debug(
-        'Got websocket message "get_value_hash", user: "%s", key: %s',
+    LOGGER.verbose('Got websocket message "get_value_hash", user: "%s", key: %s',
         connection.user.id,
         msg.get("key"),
     )
@@ -167,8 +163,8 @@ async def websocket_domika_get_value_hash(
         LOGGER.error('Got websocket message "get_value_hash", key is missing')
         return
 
-    value_valuehash: Tuple[str, str] | None = _get_value(key, connection.user.id)
-    result = {"key": key, "hash": value_valuehash[1]} if value_valuehash else {}
+    users_data: UsersData | None = _get_value(key, connection.user.id)
+    result = {"key": key, "hash": users_data.value_hash} if users_data else {}
 
     connection.send_result(msg_id, result)
-    LOGGER.debug("get_value_hash msg_id=%s data=%s", msg_id, result)
+    LOGGER.trace("get_value_hash msg_id=%s data=%s", msg_id, result)

@@ -19,14 +19,14 @@ from .const import (
     DB_DRIVER,
     DB_NAME,
     DOMAIN,
-    LOGGER
 )
+from .domika_logger import LOGGER
 from .critical_sensor import router as critical_sensor_router
 from .sessions import router as device_router
 from .entity import router as entity_router
 from .ha_event import event_pusher, flow as ha_event_flow, router as ha_event_router
 from .key_value import router as key_value_router
-from .storage import init_storage, APP_SESSIONS_STORAGE
+from .storage import init_storage, APP_SESSIONS_STORAGE, USERS_STORAGE
 from .subscription import router as subscription_router
 from . import push_data_storage
 
@@ -47,7 +47,7 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
     hass.http.register_view(DomikaAPIPushStatesWithDelay)
     hass.http.register_view(DomikaAPIPushResubscribe)
 
-    LOGGER.debug("Component loaded")
+    LOGGER.verbose("Component loaded")
     return True
 
 
@@ -139,7 +139,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Register homeassistant startup callback.
     async_at_started(hass, _on_homeassistant_started)
 
-    LOGGER.debug("Entry loaded")
+    LOGGER.verbose("Entry loaded")
     return True
 
 
@@ -147,7 +147,6 @@ async def config_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
     """Handle options update."""
     # Reload entry.
     await hass.config_entries.async_reload(entry.entry_id)
-
 
 
 async def async_unload_entry(hass: HomeAssistant, _entry: ConfigEntry) -> bool:
@@ -182,20 +181,16 @@ async def async_unload_entry(hass: HomeAssistant, _entry: ConfigEntry) -> bool:
     # Clear hass data.
     hass.data.pop(DOMAIN, None)
 
-    LOGGER.debug("Entry unloaded")
+    LOGGER.verbose("Entry unloaded")
     return True
 
 
 async def async_remove_entry(hass: HomeAssistant, _entry: ConfigEntry) -> None:
     """Handle removal of a local storage."""
-    # Delete database.
-    db_path = f"{hass.config.path()}/{DB_NAME}"
-    try:
-        Path(db_path).unlink()
-    except OSError:
-        LOGGER.error('Can\'t remove database "%s"', db_path)
-
-    LOGGER.debug("Entry removed")
+    LOGGER.debug("Entry removing")
+    await APP_SESSIONS_STORAGE.delete_storage()
+    await USERS_STORAGE.delete_storage()
+    LOGGER.verbose("Entry removed")
 
 
 async def async_migrate_entry(_hass: HomeAssistant, _entry: ConfigEntry) -> bool:
@@ -212,6 +207,7 @@ async def _on_homeassistant_started(hass: HomeAssistant) -> None:
         event_pusher(hass),
         "event_pusher",
     )
+    LOGGER.debug("Started EVENT_PUSHER")
 
     # Setup Domika event listener.
     hass.data[DOMAIN]["cancel_event_listening"] = hass.bus.async_listen(

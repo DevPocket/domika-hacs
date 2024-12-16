@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from homeassistant.core import async_get_hass
 
-from ..const import LOGGER
+from ..domika_logger import LOGGER
 from ..utils import flatten_json
 from ..storage import APP_SESSIONS_STORAGE
 
@@ -30,6 +30,11 @@ async def get(
 
     Filter by entity_id if passed and not None
     """
+    LOGGER.finer("API.service.get called, app_session_id: %s, need_push: %s, entity_id: %s",
+                 app_session_id,
+                 need_push,
+                 entity_id
+                 )
     result: list[DomikaHaEntity] = []
 
     entities_attributes: dict[str, list[str]] = {}
@@ -49,6 +54,8 @@ async def get(
             subscription.attribute,
         )
 
+    LOGGER.finer("API.service.get, entities_attributes: %s", entities_attributes)
+
     hass = async_get_hass()
     for entity, attributes in entities_attributes.items():
         state = hass.states.get(entity)
@@ -67,8 +74,8 @@ async def get(
                 domika_entity,
             )
         else:
-            LOGGER.error(
-                'Ha_entity.get is requesting state of unknown entity: "%s"',
+            LOGGER.debug(
+                'API.service.get is requesting state of unknown entity: "%s"',
                 entity,
             )
 

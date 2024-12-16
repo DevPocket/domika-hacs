@@ -11,7 +11,8 @@ from homeassistant.components.websocket_api import (
 )
 from homeassistant.core import HomeAssistant
 
-from ..const import LOGGER, SMILEY_HIDDEN_IDS_HASH_KEY, SMILEY_HIDDEN_IDS_KEY
+from ..const import SMILEY_HIDDEN_IDS_HASH_KEY, SMILEY_HIDDEN_IDS_KEY
+from ..domika_logger import LOGGER
 from .enums import NotificationType
 from .service import get_with_smiley
 

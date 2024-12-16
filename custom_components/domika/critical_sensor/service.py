@@ -11,10 +11,10 @@ from ..const import (
     CRITICAL_NOTIFICATION_DEVICE_CLASSES,
     CRITICAL_PUSH_SETTINGS_DEVICE_CLASSES,
     DOMAIN,
-    LOGGER,
     SENSORS_DOMAIN,
     WARNING_NOTIFICATION_DEVICE_CLASSES,
 )
+from ..domika_logger import LOGGER
 from .enums import NotificationType
 from .models import DomikaNotificationSensor, DomikaNotificationSensorsRead
 from ..storage import USERS_STORAGE
@@ -33,6 +33,8 @@ def get(
     notification_types: NotificationType,
 ) -> DomikaNotificationSensorsRead:
     """Get state of the critical sensors."""
+    LOGGER.finer("Critical_sensor.service.get called, notification_types: %s", notification_types)
+
     result = DomikaNotificationSensorsRead([], [])
 
     entity_ids = hass.states.async_entity_ids(SENSORS_DOMAIN)
@@ -44,6 +46,11 @@ def get(
         "critical_included_entity_ids",
         [],
     )
+
+    LOGGER.finer("Critical_sensor.service.get, critical_entities: %s, critical_included_entity_ids: %s",
+                 critical_entities,
+                 critical_included_entity_ids
+                 )
 
     for entity_id in entity_ids:
         entity: RegistryEntry | None = entity_registry.entities.get(entity_id)
@@ -87,6 +94,7 @@ def get(
         if sensor_state.state == STATE_ON:
             result.sensors_on.append(entity_id)
 
+    LOGGER.finer("Critical_sensor.service.get result: %s", result)
     return result
 
 
@@ -97,6 +105,12 @@ async def get_with_smiley(
     smiley_key: str,
     smiley_hash_key: str,
 ) -> dict:
+    LOGGER.finer("Critical_sensor.service.get_with_smiley called, notification_types: %s, user_id: %s, " 
+                 "smiley_key: %s, smiley_hash_key: %s",
+                 notification_types,
+                 user_id,
+                 smiley_key,
+                 smiley_hash_key)
     try:
         sensors_data = get(hass, notification_types)
         result = sensors_data.to_dict()
@@ -107,9 +121,10 @@ async def get_with_smiley(
             result[smiley_key] = key_value.value
             result[smiley_hash_key] = key_value.value_hash
 
+        LOGGER.finer("Critical_sensor.service.get_with_smiley called, result: %s", result)
         return result
     except Exception:  # noqa: BLE001
-        LOGGER.exception(
+        LOGGER.error(
             'Can\'t get value for key: %s, user "%s". Unhandled error',
             smiley_key,
             user_id,

@@ -8,7 +8,8 @@ from aiohttp import web
 from homeassistant.core import async_get_hass
 from homeassistant.helpers.http import HomeAssistantView
 
-from ..const import DOMAIN, LOGGER
+from ..const import DOMAIN
+from ..domika_logger import LOGGER
 from ..storage import APP_SESSIONS_STORAGE
 
 
@@ -20,6 +21,8 @@ class DomikaAPIPushResubscribe(HomeAssistantView):
 
     async def post(self, request: web.Request) -> web.Response:
         """Post method."""
+        LOGGER.verbose("DomikaAPIPushResubscribe called.")
+
         # Check that integration still loaded.
         hass = async_get_hass()
         if not hass.data.get(DOMAIN):
@@ -34,7 +37,7 @@ class DomikaAPIPushResubscribe(HomeAssistantView):
                 HTTPStatus.UNAUTHORIZED,
             )
 
-        LOGGER.debug(
+        LOGGER.trace(
             "DomikaAPIPushResubscribe: request_dict: %s, app_session_id: %s",
             request_dict,
             app_session_id,
@@ -50,5 +53,5 @@ class DomikaAPIPushResubscribe(HomeAssistantView):
         APP_SESSIONS_STORAGE.resubscribe_push(app_session_id, subscriptions)
 
         data = {"result": "success"}
-        LOGGER.debug("DomikaAPIPushResubscribe data: %s", data)
+        LOGGER.fine("DomikaAPIPushResubscribe data: %s", data)
         return self.json(data, HTTPStatus.OK)
