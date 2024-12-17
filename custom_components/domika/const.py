@@ -11,7 +11,7 @@ DOMAIN = "domika"
 # None = DEBUG
 # DOMIKA_LOG_LEVEL = None
 # Reserved for future use
-DOMIKA_LOG_LEVEL = 'FINEST'
+DOMIKA_LOG_LEVEL = 'VERBOSE'
 
 
 DB_DIALECT = "sqlite"
