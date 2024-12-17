@@ -447,7 +447,7 @@ async def websocket_domika_update_push_session(
         _create_push_session(
             hass,
             cast(str, msg.get("original_transaction_id")),
-            cast(str, "platform"),
+            cast(str, msg.get("platform")),
             cast(str, msg.get("environment")),
             cast(str, msg.get("push_token_hex")),
             cast(str, msg.get("app_session_id")),
