@@ -30,12 +30,10 @@ def _related(hass: HomeAssistant, root_entity_id: str) -> set[str]:
 
     searcher = Searcher(hass, hass_entity.entity_sources(hass))
     related_devices = searcher.async_search(ItemType.ENTITY, root_entity_id)
-    LOGGER.finest("Entity.service._related, related_devices: %s", related_devices)
     res = set()
     if related_devices and "device" in related_devices:
         related_device_id = related_devices["device"].pop()
         related_entities = searcher.async_search(ItemType.DEVICE, related_device_id)
-        LOGGER.finest("Entity.service._related, related_entities: %s", related_entities)
         if related_entities and "entity" in related_entities:
             res = related_entities["entity"]
 
