@@ -152,8 +152,6 @@ async def websocket_domika_update_app_session(
             connection.user.id,
             push_token_hash,
         )
-        LOGGER.debug('Successfully updated app session id "%s"', app_session_id)
-
         result = {
             "app_session_id": app_session_id,
             "old_app_session_ids": old_app_session_ids,

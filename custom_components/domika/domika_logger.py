@@ -40,28 +40,23 @@ class DomikaLogger:
 
     def verbose(self, msg, *args, **kwargs):
         if self._logger.isEnabledFor(logging.DEBUG) and DOMIKA_LOG_LEVELS['VERBOSE'] >= DOMIKA_LOG_LEVELS[self.LOG_LEVEL]:
-            self._logger.debug('[VERBOSE] ' + msg, *args, **kwargs)
-        # if self._logger.isEnabledFor(logging.DEBUG):
-        #     if DOMIKA_LOG_LEVELS['VERBOSE'] >= DOMIKA_LOG_LEVELS[self.LOG_LEVEL]:
-        #         self._logger.debug('[VERBOSE] ' + msg, *args, **kwargs)
-        #     elif debug_message:
-        #         self._logger.debug(debug_message)
+            self._logger.debug(msg, *args, **kwargs)
 
     def trace(self, msg, *args, **kwargs):
         if self._logger.isEnabledFor(logging.DEBUG) and DOMIKA_LOG_LEVELS['TRACE'] >= DOMIKA_LOG_LEVELS[self.LOG_LEVEL]:
-            self._logger.debug('[TRACE] ' + msg, *args, **kwargs)
+            self._logger.debug(msg, *args, **kwargs)
 
     def fine(self, msg, *args, **kwargs):
         if self._logger.isEnabledFor(logging.DEBUG) and DOMIKA_LOG_LEVELS['FINE'] >= DOMIKA_LOG_LEVELS[self.LOG_LEVEL]:
-            self._logger.debug('[FINE] ' + msg, *args, **kwargs)
+            self._logger.debug(msg, *args, **kwargs)
 
     def finer(self, msg, *args, **kwargs):
         if self._logger.isEnabledFor(logging.DEBUG) and DOMIKA_LOG_LEVELS['FINER'] >= DOMIKA_LOG_LEVELS[self.LOG_LEVEL]:
-            self._logger.debug('[FINER] ' + msg, *args, **kwargs)
+            self._logger.debug(msg, *args, **kwargs)
 
     def finest(self, msg, *args, **kwargs):
         if self._logger.isEnabledFor(logging.DEBUG) and DOMIKA_LOG_LEVELS['FINEST'] >= DOMIKA_LOG_LEVELS[self.LOG_LEVEL]:
-            self._logger.debug('[FINEST] ' + msg, *args, **kwargs)
+            self._logger.debug(msg, *args, **kwargs)
 
 
 LOGGER = DomikaLogger(DOMIKA_LOG_LEVEL)

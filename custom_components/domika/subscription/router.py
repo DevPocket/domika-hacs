@@ -35,8 +35,9 @@ async def websocket_domika_resubscribe(
         LOGGER.error('Got websocket message "resubscribe", msg_id is missing')
         return
 
-    LOGGER.verbose('Got websocket message "resubscribe", data: %s', msg)
     app_session_id = msg.get("app_session_id")
+    LOGGER.verbose('Got websocket message "resubscribe", msg_id:%s, app_session_id: %s', msg_id, app_session_id)
+    LOGGER.fine('Got websocket message "resubscribe", data: %s', msg)
 
     res_list = []
     subscriptions = cast(dict[str, dict[str, int]], msg.get("subscriptions"))
@@ -55,7 +56,7 @@ async def websocket_domika_resubscribe(
                 },
             )
         else:
-            LOGGER.error(
+            LOGGER.debug(
                 "Websocket_domika_resubscribe requesting state of unknown entity: %s",
                 entity_id,
             )

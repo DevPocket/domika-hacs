@@ -348,7 +348,7 @@ def _fire_event_to_app_session_ids(
         attributes: dict,
         app_session_ids: Iterable[str],
 ) -> None:
-    LOGGER.verbose("_fire_event_to_app_session_ids started, app_session_ids: %s, event_id: %s, entity_id: %s, attributes: %s",
+    LOGGER.trace("_fire_event_to_app_session_ids started, app_session_ids: %s, event_id: %s, entity_id: %s, attributes: %s",
         app_session_ids,
         event_id,
         entity_id,

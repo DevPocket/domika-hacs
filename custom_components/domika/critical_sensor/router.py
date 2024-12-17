@@ -34,7 +34,7 @@ async def websocket_domika_critical_sensors(
         LOGGER.error('Got websocket message "critical_sensors", msg_id is missing')
         return
 
-    LOGGER.debug('Got websocket message "critical_sensors", data: %s', msg)
+    LOGGER.verbose('Got websocket message "critical_sensors", data: %s', msg)
 
     result = await get_with_smiley(
         hass,
@@ -45,4 +45,4 @@ async def websocket_domika_critical_sensors(
     )
 
     connection.send_result(msg_id, result)
-    LOGGER.debug("Critical_sensors msg_id=%s data=%s", msg_id, result)
+    LOGGER.trace("Critical_sensors msg_id=%s data=%s", msg_id, result)
