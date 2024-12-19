@@ -15,9 +15,6 @@ from .api.domain_services_view import DomikaAPIDomainServicesView
 from .api.push_resubscribe import DomikaAPIPushResubscribe
 from .api.push_states_with_delay import DomikaAPIPushStatesWithDelay
 from .const import (
-    DB_DIALECT,
-    DB_DRIVER,
-    DB_NAME,
     DOMAIN,
 )
 from .domika_logger import LOGGER

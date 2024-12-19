@@ -180,8 +180,10 @@ async def process_push_data(hass: HomeAssistant) -> None:
     """
     LOGGER.debug("process_push_data started")
 
-    PUSHDATA_STORAGE.decrease_delay()
+
     push_data_records = PUSHDATA_STORAGE.get_all_sorted()
+
+    LOGGER.finest("process_push_data push_data_records: %s", push_data_records)
 
     # Create push data dict.
     # Format example:
@@ -256,7 +258,11 @@ async def process_push_data(hass: HomeAssistant) -> None:
         )
         app_sessions_ids_to_delete_list.append(current_app_session_id)
 
+    # Remove all pushdata for all app_session_ids already processed
     PUSHDATA_STORAGE.remove_by_app_session_ids(app_sessions_ids_to_delete_list)
+
+    # Decrease delay for all records left
+    PUSHDATA_STORAGE.decrease_delay()
 
 
 async def _send_push_data(
@@ -269,8 +275,8 @@ async def _send_push_data(
         *,
         critical: bool = False,
 ) -> None:
-    LOGGER.verbose("Push events %s to push_session %s (app_session %s). %s",
-        "(critical)" if critical else " ",
+    LOGGER.verbose("Push events %sto push_session %s (app_session %s). %s",
+        "(critical) " if critical else "",
         push_session_id,
         app_session_id,
         payload
