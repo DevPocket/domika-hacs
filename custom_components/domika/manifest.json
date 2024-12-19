@@ -19,8 +19,6 @@
   "loggers": ["domika"],
   "name": "Domika",
   "requirements": [
-    "alembic",
-    "aiosqlite"
   ],
   "single_config_entry": true,
   "version": "1.0.9"

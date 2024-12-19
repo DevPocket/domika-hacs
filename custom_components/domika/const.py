@@ -1,27 +1,24 @@
 """Domika constants."""
 
 from datetime import timedelta
-import logging
-import os
-
 from homeassistant.components import binary_sensor, sensor
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 
 DOMAIN = "domika"
-LOGGER = logging.getLogger(__package__)
 
-DB_DIALECT = "sqlite"
-DB_DRIVER = "aiosqlite"
-DB_NAME = "Domika.db"
+# None = DEBUG
+# DOMIKA_LOG_LEVEL = None
+# Reserved for future use
+DOMIKA_LOG_LEVEL = 'VERBOSE'
 
-if os.getenv("DOMIKA_DEBUG") == "1":
-    PUSH_INTERVAL = timedelta(seconds=int(os.getenv("DOMIKA_PUSH_INTERVAL") or 30))
-else:
-    PUSH_INTERVAL = timedelta(minutes=15)
+PUSH_INTERVAL = timedelta(minutes=15)
 
 PUSH_SERVER_URL = "https://pns.domika.app:8000/api/v1"
 # Seconds
 PUSH_SERVER_TIMEOUT = 10
+
+DEVICE_INACTIVITY_CHECK_INTERVAL = timedelta(days=1)
+DEVICE_INACTIVITY_TIME_THRESHOLD = timedelta(days=30)
 
 SENSORS_DOMAIN = binary_sensor.DOMAIN
 
@@ -50,6 +47,9 @@ CRITICAL_PUSH_SETTINGS_DEVICE_CLASSES = {
 
 PUSH_DELAY_DEFAULT = 2
 PUSH_DELAY_FOR_DOMAIN = {sensor.const.DOMAIN: 2}
+
+USERS_STORAGE_DEFAULT_WRITE_DELAY = 30
+APP_SESSIONS_STORAGE_DEFAULT_WRITE_DELAY = 30
 
 CRITICAL_PUSH_ALERT_STRINGS = {
     "default": "Sensor triggered",

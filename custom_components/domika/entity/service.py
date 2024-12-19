@@ -10,6 +10,7 @@ from homeassistant.components.light import (
     LightEntityFeature,
     get_supported_color_modes,
 )
+from homeassistant.components.media_player import MediaPlayerEntityFeature
 from homeassistant.components.search import ItemType, Searcher
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import ATTR_DEVICE_CLASS, ATTR_FRIENDLY_NAME, Platform
@@ -20,22 +21,29 @@ from homeassistant.helpers import (
     entity_registry as er,
 )
 
-from ..const import LOGGER
+from ..domika_logger import LOGGER
 from .models import DomikaEntitiesList, DomikaEntityInfo
 
 
 def _related(hass: HomeAssistant, root_entity_id: str) -> set[str]:
+    LOGGER.finest("Entity.service._related called, root_entity_id: %s", root_entity_id)
+
     searcher = Searcher(hass, hass_entity.entity_sources(hass))
     related_devices = searcher.async_search(ItemType.ENTITY, root_entity_id)
+    res = set()
     if related_devices and "device" in related_devices:
         related_device_id = related_devices["device"].pop()
         related_entities = searcher.async_search(ItemType.DEVICE, related_device_id)
         if related_entities and "entity" in related_entities:
-            return related_entities["entity"]
-    return set()
+            res = related_entities["entity"]
+
+    LOGGER.finest("Entity.service._related called, res: %s", res)
+    return res
 
 
 def _capabilities_light(hass: HomeAssistant, entity_id: str) -> set[str]:
+    LOGGER.finest("Entity.service._capabilities_light called, entity_id: %s", entity_id)
+
     capabilities = set()
     supported_modes = get_supported_color_modes(hass, entity_id) or set()
     supported_features = hass_entity.get_supported_features(hass, entity_id)
@@ -54,19 +62,24 @@ def _capabilities_light(hass: HomeAssistant, entity_id: str) -> set[str]:
         capabilities.add("brightness")
         capabilities.add("color")
 
-    LOGGER.debug(
-        "Entity_id: %s supported_features: %s / %s",
+    if supported_features & LightEntityFeature.EFFECT:
+        capabilities.add("effect")
+
+    LOGGER.finest(
+        "Entity.service._capabilities_light, entity_id: %s, supported_features: %s, supported_modes: %s, "
+        "capabilities: %s",
         entity_id,
         supported_features,
         supported_modes,
+        capabilities
     )
 
-    if supported_features & LightEntityFeature.EFFECT:
-        capabilities.add("effect")
     return capabilities
 
 
 def _capabilities_climate(hass: HomeAssistant, entity_id: str) -> set[str]:
+    LOGGER.finest("Entity.service._capabilities_climate called, entity_id: %s", entity_id)
+
     capabilities = set()
     supported_features = hass_entity.get_supported_features(hass, entity_id)
     if supported_features & ClimateEntityFeature.TARGET_TEMPERATURE:
@@ -77,10 +90,39 @@ def _capabilities_climate(hass: HomeAssistant, entity_id: str) -> set[str]:
         capabilities.add("humidity")
     if supported_features & ClimateEntityFeature.FAN_MODE:
         capabilities.add("fan")
+
+    LOGGER.finest(
+        "Entity.service._capabilities_climate, entity_id: %s, supported_features: %s, capabilities: %s",
+        entity_id,
+        supported_features,
+        capabilities
+    )
+    return capabilities
+
+
+def _capabilities_player(hass: HomeAssistant, entity_id: str) -> set[str]:
+    LOGGER.finest("Entity.service._capabilities_player called, entity_id: %s", entity_id)
+    capabilities = set()
+    supported_features = hass_entity.get_supported_features(hass, entity_id)
+    if supported_features & MediaPlayerEntityFeature.PLAY:
+        capabilities.add("play")
+    if supported_features & MediaPlayerEntityFeature.PAUSE:
+        capabilities.add("pause")
+    if supported_features & MediaPlayerEntityFeature.VOLUME_SET:
+        capabilities.add("setVolume")
+    if supported_features & MediaPlayerEntityFeature.SELECT_SOURCE:
+        capabilities.add("selectSource")
+    LOGGER.finest(
+        "Entity.service._capabilities_player, entity_id: %s, supported_features: %s, capabilities: %s",
+        entity_id,
+        supported_features,
+        capabilities
+    )
     return capabilities
 
 
 def _capabilities_cover(hass: HomeAssistant, entity_id: str) -> set[str]:
+    LOGGER.finest("Entity.service._capabilities_cover called, entity_id: %s", entity_id)
     capabilities = set()
     # CoverEntityFeature
     supported_features = hass_entity.get_supported_features(hass, entity_id)
@@ -100,22 +142,41 @@ def _capabilities_cover(hass: HomeAssistant, entity_id: str) -> set[str]:
         capabilities.add("stopTilt")
     if supported_features & CoverEntityFeature.SET_TILT_POSITION:
         capabilities.add("setTiltPosition")
+    LOGGER.finest(
+        "Entity.service._capabilities_cover, entity_id: %s, supported_features: %s, capabilities: %s",
+        entity_id,
+        supported_features,
+        capabilities
+    )
     return capabilities
 
 
 def _capabilities_sensor(_hass: HomeAssistant, state: State) -> set[str]:
+    LOGGER.finest("Entity.service._capabilities_sensor called, state: %s", state)
     capabilities = set()
     capabilities.add(cast(str, state.attributes.get(ATTR_DEVICE_CLASS)))
+    LOGGER.finest(
+        "Entity.service._capabilities_cover, state: %s, capabilities: %s",
+        state,
+        capabilities
+    )
     return capabilities
 
 
 def _capabilities_binary_sensor(_hass: HomeAssistant, state: State) -> set[str]:
+    LOGGER.finest("Entity.service._capabilities_binary_sensor called, state: %s", state)
     capabilities = set()
     capabilities.add(cast(str, state.attributes.get(ATTR_DEVICE_CLASS)))
+    LOGGER.finest(
+        "Entity.service._capabilities_binary_sensor, state: %s, capabilities: %s",
+        state,
+        capabilities
+    )
     return capabilities
 
 
 def _related_climate(hass: HomeAssistant, entity_id: str) -> dict:
+    LOGGER.finest("Entity.service._related_climate called, entity_id: %s", entity_id)
     related_ids = {}
     for related_id in _related(hass, entity_id):
         state = hass.states.get(related_id)
@@ -133,10 +194,16 @@ def _related_climate(hass: HomeAssistant, entity_id: str) -> dict:
             )
         ):
             related_ids[state.attributes[ATTR_DEVICE_CLASS]] = related_id
+    LOGGER.finest(
+        "Entity.service._capabilities_binary_sensor, entity_id: %s, related_ids: %s",
+        entity_id,
+        related_ids
+    )
     return related_ids
 
 
 def _related_lock(hass: HomeAssistant, entity_id: str) -> dict:
+    LOGGER.finest("Entity.service._related_lock called, entity_id: %s", entity_id)
     related_ids = {}
     for related_id in _related(hass, entity_id):
         state = hass.states.get(related_id)
@@ -155,34 +222,53 @@ def _related_lock(hass: HomeAssistant, entity_id: str) -> dict:
             )
         ):
             related_ids[state.attributes[ATTR_DEVICE_CLASS]] = related_id
+    LOGGER.finest(
+        "Entity.service._related_lock, entity_id: %s, related_ids: %s",
+        entity_id,
+        related_ids
+    )
     return related_ids
 
 
 def _related_area(hass: HomeAssistant, entity_id: str) -> str:
+    LOGGER.finest("Entity.service._related_area called, entity_id: %s", entity_id)
+    res = ""
     if entity_entry := er.async_get(hass).async_get(entity_id):
         if entity_entry.area_id:
-            return entity_entry.area_id
+            res = entity_entry.area_id
 
         searcher = Searcher(hass, hass_entity.entity_sources(hass))
         related_devices = searcher.async_search(ItemType.ENTITY, entity_id)
         if related_devices and "device" in related_devices:
             related_device_id = related_devices["device"].pop()
             if device_entry := dr.async_get(hass).async_get(related_device_id):
-                return device_entry.area_id or ""
-    return ""
+                res = device_entry.area_id or ""
+    LOGGER.finest(
+        "Entity.service._related_area, entity_id: %s, res: %s",
+        entity_id,
+        res
+    )
+    return res
 
 
 def _related_integrations(hass: HomeAssistant, entity_id: str) -> set:
+    LOGGER.finest("Entity.service._related_integrations called, entity_id: %s", entity_id)
+    res = set()
     searcher = Searcher(hass, hass_entity.entity_sources(hass))
     related = searcher.async_search(ItemType.ENTITY, entity_id)
     if related and "integration" in related:
-        return related["integration"]
-
-    return set()
+        res = related["integration"]
+    LOGGER.finest(
+        "Entity.service._related_integrations, entity_id: %s, res: %s",
+        entity_id,
+        res
+    )
+    return res
 
 
 def get_single(hass: HomeAssistant, entity_id: str) -> DomikaEntityInfo | None:
     """Get single entity info."""
+    LOGGER.finest("Entity.service.get_single called, entity_id: %s", entity_id)
     result = DomikaEntityInfo({})
     state = hass.states.get(entity_id)
     if not state:
@@ -210,6 +296,8 @@ def get_single(hass: HomeAssistant, entity_id: str) -> DomikaEntityInfo | None:
         capabilities = _capabilities_sensor(hass, state)
     elif state.domain == Platform.BINARY_SENSOR:
         capabilities = _capabilities_binary_sensor(hass, state)
+    elif state.domain == Platform.MEDIA_PLAYER:
+        capabilities = _capabilities_player(hass, entity_id)
     if capabilities:
         result.info["capabilities"] = capabilities
 
@@ -222,15 +310,26 @@ def get_single(hass: HomeAssistant, entity_id: str) -> DomikaEntityInfo | None:
     if related_ids:
         result.info["related"] = related_ids
 
+    LOGGER.finest(
+        "Entity.service.get_single, entity_id: %s, result: %s",
+        entity_id,
+        result
+    )
     return result
 
 
 def get(hass: HomeAssistant, domains: list[str]) -> DomikaEntitiesList:
     """Get names and related ids for all entities in specified domains."""
+    LOGGER.finest("Entity.service.get called, entity_id: %s", domains)
     entity_ids = hass.states.async_entity_ids(domains)
     result = DomikaEntitiesList({})
     for entity_id in entity_ids:
         single = get_single(hass, entity_id)
         if single:
             result.entities[entity_id] = single.info
+    LOGGER.finest(
+        "Entity.service.get_single, domains: %s, result: %s",
+        domains,
+        result
+    )
     return result

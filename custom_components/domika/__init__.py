@@ -7,34 +7,25 @@ from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from aiohttp import ClientTimeout
-
 from homeassistant.components import websocket_api
 from homeassistant.const import EVENT_STATE_CHANGED
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.start import async_at_started
-
-from . import domika_ha_framework
 from .api.domain_services_view import DomikaAPIDomainServicesView
 from .api.push_resubscribe import DomikaAPIPushResubscribe
 from .api.push_states_with_delay import DomikaAPIPushStatesWithDelay
 from .const import (
-    DB_DIALECT,
-    DB_DRIVER,
-    DB_NAME,
     DOMAIN,
-    LOGGER,
-    PUSH_INTERVAL,
-    PUSH_SERVER_TIMEOUT,
-    PUSH_SERVER_URL,
 )
+from .domika_logger import LOGGER
 from .critical_sensor import router as critical_sensor_router
-from .device import router as device_router
-from .domika_ha_framework import config
+from .sessions import router as device_router
 from .entity import router as entity_router
-from .ha_event import flow as ha_event_flow, router as ha_event_router
-from .key_value_storage import router as key_value_router
+from .ha_event import event_pusher, flow as ha_event_flow, router as ha_event_router
+from .key_value import router as key_value_router
+from .storage import init_storage, APP_SESSIONS_STORAGE, USERS_STORAGE
 from .subscription import router as subscription_router
+from . import push_data_storage
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -53,7 +44,7 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
     hass.http.register_view(DomikaAPIPushStatesWithDelay)
     hass.http.register_view(DomikaAPIPushResubscribe)
 
-    LOGGER.debug("Component loaded")
+    LOGGER.verbose("Component loaded")
     return True
 
 
@@ -61,24 +52,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up a config entry."""
     LOGGER.debug("Entry loading")
 
-    # Init framework library.
-    try:
-        await domika_ha_framework.init(
-            config.Config(
-                database_url=f"{DB_DIALECT}+{DB_DRIVER}:///{hass.config.path()}/{DB_NAME}",
-                push_server_url=PUSH_SERVER_URL,
-                push_server_timeout=ClientTimeout(total=PUSH_SERVER_TIMEOUT),
-            ),
-        )
-    except Exception:  # noqa: BLE001
-        LOGGER.exception("Can't setup %s entry", DOMAIN)
-        return False
-
     # Update domain's critical_entities from options.
     if not hass.data.get(DOMAIN):
         hass.data[DOMAIN] = {}
     hass.data[DOMAIN]["critical_entities"] = entry.options.get("critical_entities")
     hass.data[DOMAIN]["entry"] = entry
+
+    # Init storage.
+    await init_storage(hass)
+
+    # Start inactive sessions cleaner background task.
+    entry.async_create_background_task(
+        hass,
+        APP_SESSIONS_STORAGE.inactive_device_cleaner(),
+        "inactive_device_cleaner",
+    )
 
     # Register Domika WebSocket commands.
     websocket_api.async_register_command(
@@ -148,7 +136,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Register homeassistant startup callback.
     async_at_started(hass, _on_homeassistant_started)
 
-    LOGGER.debug("Entry loaded")
+    LOGGER.verbose("Entry loaded")
     return True
 
 
@@ -187,45 +175,24 @@ async def async_unload_entry(hass: HomeAssistant, _entry: ConfigEntry) -> bool:
 
     await asyncio.sleep(0)
 
-    # Dispose framework library.
-    await domika_ha_framework.dispose()
-
     # Clear hass data.
     hass.data.pop(DOMAIN, None)
 
-    LOGGER.debug("Entry unloaded")
+    LOGGER.verbose("Entry unloaded")
     return True
 
 
 async def async_remove_entry(hass: HomeAssistant, _entry: ConfigEntry) -> None:
     """Handle removal of a local storage."""
-    # Delete database.
-    db_path = f"{hass.config.path()}/{DB_NAME}"
-    try:
-        Path(db_path).unlink()
-    except OSError:
-        LOGGER.error('Can\'t remove database "%s"', db_path)
-
-    LOGGER.debug("Entry removed")
+    LOGGER.debug("Entry removing")
+    await APP_SESSIONS_STORAGE.delete_storage()
+    await USERS_STORAGE.delete_storage()
+    LOGGER.verbose("Entry removed")
 
 
 async def async_migrate_entry(_hass: HomeAssistant, _entry: ConfigEntry) -> bool:
     """Migrate an old config entry."""
     return True
-
-
-async def _event_pusher(hass: HomeAssistant) -> None:
-    LOGGER.debug("Event pusher started")
-    try:
-        while True:
-            await asyncio.sleep(PUSH_INTERVAL.seconds)
-            try:
-                await ha_event_flow.push_registered_events(hass)
-            except Exception:  # noqa: BLE001
-                LOGGER.exception("Event pusher error")
-    except asyncio.CancelledError as e:
-        LOGGER.debug("Event pusher stopped. %s", e)
-        raise
 
 
 async def _on_homeassistant_started(hass: HomeAssistant) -> None:
@@ -234,9 +201,10 @@ async def _on_homeassistant_started(hass: HomeAssistant) -> None:
     entry: ConfigEntry = hass.data[DOMAIN]["entry"]
     entry.async_create_background_task(
         hass,
-        _event_pusher(hass),
+        event_pusher(hass),
         "event_pusher",
     )
+    LOGGER.debug("Started EVENT_PUSHER")
 
     # Setup Domika event listener.
     hass.data[DOMAIN]["cancel_event_listening"] = hass.bus.async_listen(

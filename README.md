@@ -48,7 +48,6 @@ logger:
     default: info
     logs:
         custom_components.domika: debug
-        domika_ha_framework: debug
 ```
 
 ## Domika Documentation

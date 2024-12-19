@@ -11,16 +11,13 @@ from ..const import (
     CRITICAL_NOTIFICATION_DEVICE_CLASSES,
     CRITICAL_PUSH_SETTINGS_DEVICE_CLASSES,
     DOMAIN,
-    LOGGER,
     SENSORS_DOMAIN,
     WARNING_NOTIFICATION_DEVICE_CLASSES,
 )
-from ..domika_ha_framework.database import core as database_core
-from ..domika_ha_framework.errors import DomikaFrameworkBaseError
-from ..domika_ha_framework.key_value_storage import service as key_value_service
-from ..domika_ha_framework.key_value_storage.models import DomikaKeyValueRead, KeyValue
+from ..domika_logger import LOGGER
 from .enums import NotificationType
 from .models import DomikaNotificationSensor, DomikaNotificationSensorsRead
+from ..storage import USERS_STORAGE
 
 if TYPE_CHECKING:
     from homeassistant.helpers.entity_registry import RegistryEntry
@@ -36,6 +33,8 @@ def get(
     notification_types: NotificationType,
 ) -> DomikaNotificationSensorsRead:
     """Get state of the critical sensors."""
+    LOGGER.finer("Critical_sensor.service.get called, notification_types: %s", notification_types)
+
     result = DomikaNotificationSensorsRead([], [])
 
     entity_ids = hass.states.async_entity_ids(SENSORS_DOMAIN)
@@ -48,6 +47,11 @@ def get(
         [],
     )
 
+    LOGGER.finer("Critical_sensor.service.get, critical_entities: %s, critical_included_entity_ids: %s",
+                 critical_entities,
+                 critical_included_entity_ids
+                 )
+
     for entity_id in entity_ids:
         entity: RegistryEntry | None = entity_registry.entities.get(entity_id)
         if not entity or entity.hidden_by or entity.disabled_by:
@@ -55,16 +59,12 @@ def get(
 
         # If user manually added entity to the list for critical pushes — it's CRITICAL
         # for us.
-        sensor_notification_type: NotificationType | None = None
         if entity_id in critical_included_entity_ids:
             sensor_notification_type = NotificationType.CRITICAL
         else:
             sensor_notification_type = notification_type(hass, entity_id)
 
-        if (
-            sensor_notification_type is None
-            or sensor_notification_type not in notification_types
-        ):
+        if not sensor_notification_type or sensor_notification_type not in notification_types:
             continue
 
         sensor_state: State | None = hass.states.get(entity_id)
@@ -94,6 +94,7 @@ def get(
         if sensor_state.state == STATE_ON:
             result.sensors_on.append(entity_id)
 
+    LOGGER.finer("Critical_sensor.service.get result: %s", result)
     return result
 
 
@@ -104,30 +105,26 @@ async def get_with_smiley(
     smiley_key: str,
     smiley_hash_key: str,
 ) -> dict:
+    LOGGER.finer("Critical_sensor.service.get_with_smiley called, notification_types: %s, user_id: %s, " 
+                 "smiley_key: %s, smiley_hash_key: %s",
+                 notification_types,
+                 user_id,
+                 smiley_key,
+                 smiley_hash_key)
     try:
         sensors_data = get(hass, notification_types)
         result = sensors_data.to_dict()
 
-        async with database_core.get_session() as session:
-            key_value: KeyValue | None = await key_value_service.get(
-                session,
-                DomikaKeyValueRead(user_id, smiley_key),
-            )
+        key_value = USERS_STORAGE.get_users_data(user_id=user_id, key=smiley_key)
 
         if key_value:
             result[smiley_key] = key_value.value
-            result[smiley_hash_key] = key_value.hash
+            result[smiley_hash_key] = key_value.value_hash
 
+        LOGGER.finer("Critical_sensor.service.get_with_smiley called, result: %s", result)
         return result
-    except DomikaFrameworkBaseError as e:
-        LOGGER.error(
-            'Can\'t get value for key: %s, user "%s". Framework error. %s',
-            smiley_key,
-            user_id,
-            e,
-        )
     except Exception:  # noqa: BLE001
-        LOGGER.exception(
+        LOGGER.error(
             'Can\'t get value for key: %s, user "%s". Unhandled error',
             smiley_key,
             user_id,

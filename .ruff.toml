@@ -177,6 +177,3 @@ split-on-trailing-comma = false
 [lint.extend-per-file-ignores]
 "__init__.py" = ["F401"]
 "test*.py" = ["S101"]
-"custom_components/domika/domika_ha_framework/migrations/versions/*.py" = [
-  "INP",
-]
