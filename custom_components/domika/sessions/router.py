@@ -159,7 +159,7 @@ async def websocket_domika_update_app_session(
         result.update(await _get_hass_network_properties(hass))
 
         connection.send_result(msg_id, result)
-        LOGGER.trace("Update_app_session msg_id=%s data=%s", msg_id, result)
+        LOGGER.verbose("Update_app_session msg_id=%s data=%s", msg_id, result)
 
 
 async def _update_app_session(
@@ -344,6 +344,7 @@ async def _create_push_session(
         original_transaction_id: str,
         platform: str,
         environment: str,
+        transaction_environment: str,
         push_token: str,
         app_session_id: str,
 ) -> None:
@@ -353,6 +354,7 @@ async def _create_push_session(
             original_transaction_id,
             platform,
             environment,
+            transaction_environment,
             push_token,
             app_session_id,
             PUSH_SERVER_URL,
@@ -449,12 +451,64 @@ async def websocket_domika_update_push_session(
             cast(str, msg.get("original_transaction_id")),
             cast(str, msg.get("platform")),
             cast(str, msg.get("environment")),
+            cast(str, msg.get("environment")),
             cast(str, msg.get("push_token_hex")),
             cast(str, msg.get("app_session_id")),
         ),
         "create_push_session",
     )
 
+@websocket_command(
+    {
+        vol.Required("type"): "domika/update_push_session_v2",
+        vol.Required("original_transaction_id"): str,
+        vol.Required("push_token_hex"): str,
+        vol.Required("platform"): vol.Any("ios", "android", "huawei"),
+        vol.Required("environment"): vol.Any("sandbox", "production"),
+        vol.Required("transaction_environment"): vol.Any("sandbox", "production"),
+        vol.Required("app_session_id"): str,
+    },
+)
+@async_response
+async def websocket_domika_update_push_session_v2(
+        hass: HomeAssistant,
+        connection: ActiveConnection,
+        msg: dict[str, Any],
+) -> None:
+    """Handle domika update push session request."""
+    msg_id: int | None = msg.get("id")
+    if msg_id is None:
+        LOGGER.error('Got websocket message "update_push_session_v2", msg_id is missing')
+        return
+
+    LOGGER.verbose('Got websocket message "update_push_session_v2", data: %s', msg)
+
+    # Fast send reply.
+    connection.send_result(msg_id, {"result": "accepted"})
+    LOGGER.trace(
+        "update_push_session_v2 msg_id=%s data=%s",
+        msg_id,
+        {"result": "accepted"},
+    )
+
+    entry = _get_entry(hass)
+    if not entry:
+        LOGGER.warning("update_push_session_v2 Error. Entry not found")
+        return
+
+    entry.async_create_task(
+        hass,
+        _create_push_session(
+            hass,
+            cast(str, msg.get("original_transaction_id")),
+            cast(str, msg.get("platform")),
+            cast(str, msg.get("environment")),
+            cast(str, msg.get("transaction_environment")),
+            cast(str, msg.get("push_token_hex")),
+            cast(str, msg.get("app_session_id")),
+        ),
+        "create_push_session",
+    )
 
 async def _remove_app_session(hass: HomeAssistant, app_session_id: str) -> None:
     try:

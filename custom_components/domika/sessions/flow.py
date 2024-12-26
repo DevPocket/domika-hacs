@@ -79,6 +79,7 @@ async def create_push_session(
         original_transaction_id: str,
         platform: str,
         environment: str,
+        transaction_environment: str,
         push_token: str,
         app_session_id: str,
         push_server_url: str,
@@ -91,7 +92,8 @@ async def create_push_session(
         http_session: aiohttp session.
         original_transaction_id: original transaction id from the application.
         platform: application platform.
-        environment: application environment.
+        environment: environment for push notifications.
+        transaction_environment: environment for purchase verification.
         push_token: application push token.
         app_session_id: application push session id.
         push_server_url: domika push server url.
@@ -110,6 +112,7 @@ async def create_push_session(
             and push_token
             and platform
             and environment
+            and transaction_environment
             and app_session_id
     ):
         msg = "One of the parameters is missing"
@@ -123,6 +126,7 @@ async def create_push_session(
                     "original_transaction_id": original_transaction_id,
                     "platform": platform,
                     "environment": environment,
+                    "transaction_environment": transaction_environment,
                     "push_token": push_token,
                     "app_session_id": app_session_id,
                 },

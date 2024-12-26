@@ -73,7 +73,7 @@ async def websocket_domika_store_value(
         LOGGER.error('Got websocket message "store_value", msg_id is missing')
         return
 
-    LOGGER.verbose('Got websocket message "store_value", data: %s', msg)
+    LOGGER.verbose('Got websocket message "store_value" id: %s, app_session_id: %s, key: %s', msg_id, msg.get("app_session_id"), msg.get("key"))
 
     # Fast send reply.
     connection.send_result(msg_id, {"result": "accepted"})
@@ -86,6 +86,7 @@ async def websocket_domika_store_value(
 
     value: str = msg.get("value", "")
     value_hash: str = msg.get("hash", "")
+    LOGGER.fine('store_value id: %s, value: %s, value_hash: %s', msg_id, value, value_hash)
 
     app_session_id: str | None = msg.get("app_session_id")
     await _store_value(hass, key, value, value_hash, connection.user.id, app_session_id)

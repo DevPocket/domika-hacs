@@ -87,6 +87,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     websocket_api.async_register_command(
         hass,
+        device_router.websocket_domika_update_push_session_v2,
+    )
+    websocket_api.async_register_command(
+        hass,
         device_router.websocket_domika_verify_push_session,
     )
     websocket_api.async_register_command(
@@ -155,6 +159,7 @@ async def async_unload_entry(hass: HomeAssistant, _entry: ConfigEntry) -> bool:
     websocket_api_handlers.pop("domika/remove_app_session", None)
     websocket_api_handlers.pop("domika/update_push_token", None)
     websocket_api_handlers.pop("domika/update_push_session", None)
+    websocket_api_handlers.pop("domika/update_push_session_v2", None)
     websocket_api_handlers.pop("domika/verify_push_session", None)
     websocket_api_handlers.pop("domika/remove_push_session", None)
     websocket_api_handlers.pop("domika/resubscribe", None)
