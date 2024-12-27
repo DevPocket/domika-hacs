@@ -362,22 +362,24 @@ async def _create_push_session(
         )
         LOGGER.debug(
             "Push session creation process successfully initialized. "
-            'original_transaction_id="%s", platform="%s", environment="%s", '
-            'push_token="%s", app_session_id="%s" ',
+            'original_transaction_id="%s", platform="%s", push_environment="%s", '
+            'transaction_environment="%s", push_token="%s", app_session_id="%s" ',
             original_transaction_id,
             platform,
             push_environment,
+            transaction_environment,
             push_token,
             app_session_id,
         )
     except ValueError as e:
         LOGGER.error(
             "Can't initialize push session creation. "
-            'original_transaction_id="%s", platform="%s", environment="%s", '
-            'push_token="%s", app_session_id="%s" %s',
+            'original_transaction_id="%s", platform="%s", push_environment="%s", '
+            'transaction_environment="%s", push_token="%s", app_session_id="%s" %s',
             original_transaction_id,
             platform,
             push_environment,
+            transaction_environment,
             push_token,
             app_session_id,
             e,
@@ -385,11 +387,12 @@ async def _create_push_session(
     except push_server_errors.DomikaPushServerError as e:
         LOGGER.error(
             "Can't initialize push session creation. "
-            'original_transaction_id="%s", platform="%s", environment="%s", '
-            'push_token="%s", app_session_id="%s" Push server error. %s',
+            'original_transaction_id="%s", platform="%s", push_environment="%s", '
+            'transaction_environment="%s", push_token="%s", app_session_id="%s" Push server error. %s',
             original_transaction_id,
             platform,
             push_environment,
+            transaction_environment,
             push_token,
             app_session_id,
             e,
@@ -397,11 +400,12 @@ async def _create_push_session(
     except Exception:  # noqa: BLE001
         LOGGER.error(
             "Can't initialize push session creation. "
-            'original_transaction_id="%s", platform="%s", environment="%s", '
-            'push_token="%s", app_session_id="%s" Unhandled error',
+            'original_transaction_id="%s", platform="%s", push_environment="%s", '
+            'transaction_environment="%s", push_token="%s", app_session_id="%s" Unhandled error',
             original_transaction_id,
             platform,
             push_environment,
+            transaction_environment,
             push_token,
             app_session_id,
         )
