@@ -78,7 +78,7 @@ async def create_push_session(
         http_session: aiohttp.ClientSession,
         original_transaction_id: str,
         platform: str,
-        environment: str,
+        push_environment: str,
         transaction_environment: str,
         push_token: str,
         app_session_id: str,
@@ -92,7 +92,7 @@ async def create_push_session(
         http_session: aiohttp session.
         original_transaction_id: original transaction id from the application.
         platform: application platform.
-        environment: environment for push notifications.
+        push_environment: environment for push notifications.
         transaction_environment: environment for purchase verification.
         push_token: application push token.
         app_session_id: application push session id.
@@ -111,7 +111,7 @@ async def create_push_session(
             original_transaction_id
             and push_token
             and platform
-            and environment
+            and push_environment
             and transaction_environment
             and app_session_id
     ):
@@ -125,7 +125,7 @@ async def create_push_session(
                 json={
                     "original_transaction_id": original_transaction_id,
                     "platform": platform,
-                    "environment": environment,
+                    "push_environment": push_environment,
                     "transaction_environment": transaction_environment,
                     "push_token": push_token,
                     "app_session_id": app_session_id,
