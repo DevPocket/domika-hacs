@@ -136,7 +136,7 @@ class AppSessionsStorage:
         for app_session_id, session_data in self._data.items():
             # Get the push_session_id; skip if it's None or empty
             push_session_id = session_data.get("push_session_id")
-            if not push_session_id:
+            if require_need_push and not push_session_id:
                 continue
 
             # Process subscriptions
