@@ -98,10 +98,9 @@ class AppSessionsStorage:
         def provide_data() -> dict:
             self.rw_lock.acquire_write()
             try:
-                # TODO: Do we need this here? How do we protect from saving data while other thread is changing it?
                 data_copy = copy.deepcopy(self._data)
                 LOGGER.finest("AppSessionsStorage _save_app_sessions_data provided data: %s", data_copy)
-                return copy.deepcopy(self._data)
+                return data_copy
             finally:
                 self.rw_lock.release_write()
 

@@ -209,6 +209,7 @@ async def _check_push_token(
         push_token_hash: str,
 ) -> None:
     app_session = APP_SESSIONS_STORAGE.get_app_session(app_session_id)
+    LOGGER.finest('_check_push_token app_session', app_session)
 
     if app_session:
         if app_session.push_session_id and app_session.push_token_hash == push_token_hash:
