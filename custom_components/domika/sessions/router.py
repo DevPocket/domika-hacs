@@ -231,6 +231,7 @@ async def _check_push_token(
         }
         LOGGER.verbose('Push token hash "%s" check. Device not found', push_token_hash)
 
+    LOGGER.debug('_check_push_token app_session: %s, result: %s', app_session, event_result)
     hass.bus.async_fire(f"domika_{app_session_id}", event_result)
 
 
