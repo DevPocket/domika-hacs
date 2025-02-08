@@ -13,7 +13,7 @@ from homeassistant.components.light import (
 from homeassistant.components.media_player import MediaPlayerEntityFeature
 from homeassistant.components.search import ItemType, Searcher
 from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.const import ATTR_DEVICE_CLASS, ATTR_FRIENDLY_NAME, Platform
+from homeassistant.const import ATTR_DEVICE_CLASS, ATTR_FRIENDLY_NAME, Platform, ATTR_UNIT_OF_MEASUREMENT
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers import (
     device_registry as dr,
@@ -154,7 +154,10 @@ def _capabilities_cover(hass: HomeAssistant, entity_id: str) -> set[str]:
 def _capabilities_sensor(_hass: HomeAssistant, state: State) -> set[str]:
     LOGGER.finest("Entity.service._capabilities_sensor called, state: %s", state)
     capabilities = set()
-    capabilities.add(cast(str, state.attributes.get(ATTR_DEVICE_CLASS)))
+    if state.attributes.get(ATTR_DEVICE_CLASS):
+        capabilities.add(cast(str, state.attributes.get(ATTR_DEVICE_CLASS)))
+    else:
+        capabilities.add(cast(str, state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)))
     LOGGER.finest(
         "Entity.service._capabilities_cover, state: %s, capabilities: %s",
         state,
@@ -166,7 +169,10 @@ def _capabilities_sensor(_hass: HomeAssistant, state: State) -> set[str]:
 def _capabilities_binary_sensor(_hass: HomeAssistant, state: State) -> set[str]:
     LOGGER.finest("Entity.service._capabilities_binary_sensor called, state: %s", state)
     capabilities = set()
-    capabilities.add(cast(str, state.attributes.get(ATTR_DEVICE_CLASS)))
+    if state.attributes.get(ATTR_DEVICE_CLASS):
+        capabilities.add(cast(str, state.attributes.get(ATTR_DEVICE_CLASS)))
+    else:
+        capabilities.add(cast(str, state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)))
     LOGGER.finest(
         "Entity.service._capabilities_binary_sensor, state: %s, capabilities: %s",
         state,
