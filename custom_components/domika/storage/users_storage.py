@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+from contextlib import suppress
 from typing import Any
 
 from homeassistant.helpers.storage import Store
@@ -73,10 +74,9 @@ class UsersStorage:
         def provide_data() -> dict:
             self.rw_lock.acquire_write()
             try:
-                # TODO: Do we need this here? How do we protect from saving data while other thread is changing it?
                 data_copy = copy.deepcopy(self._data)
                 LOGGER.finest("UsersStorage _save_app_sessions_data provided data: %s", data_copy)
-                return copy.deepcopy(self._data)
+                return data_copy
             finally:
                 self.rw_lock.release_write()
 
@@ -111,15 +111,15 @@ class UsersStorage:
             user_id: str,
             key: str
     ) -> UsersData | None:
+        res: UsersData | None = None
         LOGGER.finer("UsersStorage.get_users_data, user_id: %s, key: %s", user_id, key)
+
         self.rw_lock.acquire_read()
         try:
-            if not self._data.get(user_id):
-                return None
-            if not self._data[user_id].get(key):
-                return None
-            res = UsersData(self._data[user_id][key]['value'], self._data[user_id][key]['value_hash'])
-            LOGGER.finer("UsersStorage.get_users_data, res: %s", res)
-            return res
+            with suppress(KeyError):
+                res = UsersData(self._data[user_id][key]['value'], self._data[user_id][key]['value_hash'])
         finally:
             self.rw_lock.release_read()
+
+        LOGGER.finer("UsersStorage.get_users_data, res: %s", res)
+        return res
