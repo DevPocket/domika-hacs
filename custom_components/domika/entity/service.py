@@ -121,6 +121,23 @@ def _capabilities_player(hass: HomeAssistant, entity_id: str) -> set[str]:
     return capabilities
 
 
+def _capabilities_lock(entity_id: str, related: set[str]) -> set[str]:
+    LOGGER.finest("Entity.service._capabilities_lock called, entity_id: %s", entity_id)
+    capabilities = set()
+    if BinarySensorDeviceClass.DOOR in related:
+        capabilities.add(BinarySensorDeviceClass.DOOR)
+    elif BinarySensorDeviceClass.GARAGE_DOOR in related:
+        capabilities.add(BinarySensorDeviceClass.GARAGE_DOOR)
+    elif BinarySensorDeviceClass.WINDOW in related:
+        capabilities.add(BinarySensorDeviceClass.WINDOW)
+    LOGGER.finest(
+        "Entity.service._capabilities_lock, entity_id: %s, capabilities: %s",
+        entity_id,
+        capabilities
+    )
+    return capabilities
+
+
 def _capabilities_cover(hass: HomeAssistant, entity_id: str) -> set[str]:
     LOGGER.finest("Entity.service._capabilities_cover called, entity_id: %s", entity_id)
     capabilities = set()
@@ -289,6 +306,15 @@ def get_single(hass: HomeAssistant, entity_id: str) -> DomikaEntityInfo | None:
     if area:
         result.info["area"] = _related_area(hass, entity_id)
 
+    # Find out related entity ids, they will be used in the widget
+    related_ids = {}
+    if state.domain == "lock":
+        related_ids = _related_lock(hass, entity_id)
+    elif state.domain == "climate":
+        related_ids = _related_climate(hass, entity_id)
+    if related_ids:
+        result.info["related"] = related_ids
+
     # Find out the capabilities of the entity, to be able to select widget size
     # appropriately.
     capabilities = set()
@@ -304,17 +330,10 @@ def get_single(hass: HomeAssistant, entity_id: str) -> DomikaEntityInfo | None:
         capabilities = _capabilities_binary_sensor(hass, state)
     elif state.domain == Platform.MEDIA_PLAYER:
         capabilities = _capabilities_player(hass, entity_id)
+    elif state.domain == Platform.LOCK:
+        capabilities = _capabilities_lock(entity_id, related_ids)
     if capabilities:
         result.info["capabilities"] = capabilities
-
-    # Find out related entity ids, they will be used in the widget
-    related_ids = {}
-    if state.domain == "lock":
-        related_ids = _related_lock(hass, entity_id)
-    elif state.domain == "climate":
-        related_ids = _related_climate(hass, entity_id)
-    if related_ids:
-        result.info["related"] = related_ids
 
     LOGGER.finest(
         "Entity.service.get_single, entity_id: %s, result: %s",
