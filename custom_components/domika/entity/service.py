@@ -20,6 +20,7 @@ from homeassistant.helpers import (
     entity as hass_entity,
     entity_registry as er,
 )
+from homeassistant.helpers.entity_registry import RegistryEntry
 
 from ..domika_logger import LOGGER
 from .models import DomikaEntitiesList, DomikaEntityInfo
@@ -121,14 +122,14 @@ def _capabilities_player(hass: HomeAssistant, entity_id: str) -> set[str]:
     return capabilities
 
 
-def _capabilities_lock(entity_id: str, related: set[str]) -> set[str]:
+def _capabilities_lock(entity_id: str, device_class: str) -> set[str]:
     LOGGER.finest("Entity.service._capabilities_lock called, entity_id: %s", entity_id)
     capabilities = set()
-    if BinarySensorDeviceClass.DOOR in related:
+    if BinarySensorDeviceClass.DOOR == device_class:
         capabilities.add(BinarySensorDeviceClass.DOOR)
-    elif BinarySensorDeviceClass.GARAGE_DOOR in related:
+    elif BinarySensorDeviceClass.GARAGE_DOOR in device_class:
         capabilities.add(BinarySensorDeviceClass.GARAGE_DOOR)
-    elif BinarySensorDeviceClass.WINDOW in related:
+    elif BinarySensorDeviceClass.WINDOW in device_class:
         capabilities.add(BinarySensorDeviceClass.WINDOW)
     LOGGER.finest(
         "Entity.service._capabilities_lock, entity_id: %s, capabilities: %s",
@@ -331,7 +332,10 @@ def get_single(hass: HomeAssistant, entity_id: str) -> DomikaEntityInfo | None:
     elif state.domain == Platform.MEDIA_PLAYER:
         capabilities = _capabilities_player(hass, entity_id)
     elif state.domain == Platform.LOCK:
-        capabilities = _capabilities_lock(entity_id, related_ids)
+        if ATTR_DEVICE_CLASS in related_ids:
+            capabilities = _capabilities_lock(entity_id, related_ids[ATTR_DEVICE_CLASS])
+        else:
+            capabilities = _capabilities_lock(entity_id, "")
     if capabilities:
         result.info["capabilities"] = capabilities
 
@@ -343,14 +347,25 @@ def get_single(hass: HomeAssistant, entity_id: str) -> DomikaEntityInfo | None:
     return result
 
 
-def get(hass: HomeAssistant, domains: list[str]) -> DomikaEntitiesList:
+def get(hass: HomeAssistant, domains: list[str], include_hidden_disabled: bool) -> DomikaEntitiesList:
+    entity_registry = er.async_get(hass)
+
     """Get names and related ids for all entities in specified domains."""
     LOGGER.finest("Entity.service.get called, entity_id: %s", domains)
     entity_ids = hass.states.async_entity_ids(domains)
     result = DomikaEntitiesList({})
     for entity_id in entity_ids:
+        entity: RegistryEntry | None = entity_registry.entities.get(entity_id)
+        if not include_hidden_disabled:
+            if not entity or entity.hidden_by or entity.disabled_by:
+                continue
+
         single = get_single(hass, entity_id)
         if single:
+            if entity.hidden_by:
+                single.info["hidden"] = True
+            if entity.disabled_by:
+                single.info["disabled"] = True
             result.entities[entity_id] = single.info
     LOGGER.finest(
         "Entity.service.get_single, domains: %s, result: %s",

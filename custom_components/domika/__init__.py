@@ -12,8 +12,10 @@ from homeassistant.const import EVENT_STATE_CHANGED
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.start import async_at_started
 from .api.domain_services_view import DomikaAPIDomainServicesView
-from .api.push_resubscribe import DomikaAPIPushResubscribe
-from .api.push_states_with_delay import DomikaAPIPushStatesWithDelay
+from .api.push_resubscribe_view import DomikaAPIPushResubscribeView
+from .api.push_states_with_delay_view import DomikaAPIPushStatesWithDelayView
+from .entity.entity_list_view import DomikaAPIEntityListView
+from .entity.entity_state_view import DomikaAPIEntityStateView
 from .const import (
     DOMAIN,
 )
@@ -41,8 +43,11 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
 
     # Setup Domika api views.
     hass.http.register_view(DomikaAPIDomainServicesView)
-    hass.http.register_view(DomikaAPIPushStatesWithDelay)
-    hass.http.register_view(DomikaAPIPushResubscribe)
+    hass.http.register_view(DomikaAPIPushStatesWithDelayView)
+    hass.http.register_view(DomikaAPIPushResubscribeView)
+
+    hass.http.register_view(DomikaAPIEntityListView)
+    hass.http.register_view(DomikaAPIEntityStateView)
 
     LOGGER.verbose("Component loaded")
     return True
@@ -69,70 +74,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     # Register Domika WebSocket commands.
-    websocket_api.async_register_command(
-        hass,
-        device_router.websocket_domika_update_app_session,
-    )
-    websocket_api.async_register_command(
-        hass,
-        device_router.websocket_domika_remove_app_session,
-    )
-    websocket_api.async_register_command(
-        hass,
-        device_router.websocket_domika_update_push_token,
-    )
-    websocket_api.async_register_command(
-        hass,
-        device_router.websocket_domika_update_push_session,
-    )
-    websocket_api.async_register_command(
-        hass,
-        device_router.websocket_domika_update_push_session_v2,
-    )
-    websocket_api.async_register_command(
-        hass,
-        device_router.websocket_domika_verify_push_session,
-    )
-    websocket_api.async_register_command(
-        hass,
-        device_router.websocket_domika_remove_push_session,
-    )
-    websocket_api.async_register_command(
-        hass,
-        subscription_router.websocket_domika_resubscribe,
-    )
-    websocket_api.async_register_command(
-        hass,
-        ha_event_router.websocket_domika_confirm_events,
-    )
-    websocket_api.async_register_command(
-        hass,
-        critical_sensor_router.websocket_domika_critical_sensors,
-    )
-    websocket_api.async_register_command(
-        hass,
-        entity_router.websocket_domika_entity_list,
-    )
-    websocket_api.async_register_command(
-        hass,
-        entity_router.websocket_domika_entity_info,
-    )
-    websocket_api.async_register_command(
-        hass,
-        entity_router.websocket_domika_entity_state,
-    )
-    websocket_api.async_register_command(
-        hass,
-        key_value_router.websocket_domika_store_value,
-    )
-    websocket_api.async_register_command(
-        hass,
-        key_value_router.websocket_domika_get_value,
-    )
-    websocket_api.async_register_command(
-        hass,
-        key_value_router.websocket_domika_get_value_hash,
-    )
+    websocket_api.async_register_command(hass, device_router.websocket_domika_update_app_session,)
+    websocket_api.async_register_command(hass,device_router.websocket_domika_remove_app_session,)
+    websocket_api.async_register_command(hass,device_router.websocket_domika_update_push_token,)
+    websocket_api.async_register_command(hass,device_router.websocket_domika_update_push_session,)
+    websocket_api.async_register_command(hass,device_router.websocket_domika_update_push_session_v2,)
+    websocket_api.async_register_command(hass,device_router.websocket_domika_verify_push_session,)
+    websocket_api.async_register_command(hass,device_router.websocket_domika_remove_push_session,)
+    websocket_api.async_register_command(hass,subscription_router.websocket_domika_resubscribe,)
+    websocket_api.async_register_command(hass,ha_event_router.websocket_domika_confirm_events,)
+    websocket_api.async_register_command(hass,critical_sensor_router.websocket_domika_critical_sensors,)
+    websocket_api.async_register_command(hass,entity_router.websocket_domika_entity_list,)
+    websocket_api.async_register_command(hass,entity_router.websocket_domika_entity_info,)
+    websocket_api.async_register_command(hass,entity_router.websocket_domika_entity_state,)
+    websocket_api.async_register_command(hass,key_value_router.websocket_domika_store_value,)
+    websocket_api.async_register_command(hass,key_value_router.websocket_domika_get_value,)
+    websocket_api.async_register_command(hass,key_value_router.websocket_domika_get_value_hash,)
 
     # Register config update callback.
     entry.async_on_unload(entry.add_update_listener(config_update_listener))

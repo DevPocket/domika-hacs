@@ -37,7 +37,7 @@ def websocket_domika_entity_list(
     LOGGER.verbose('Got websocket message "entity_list", data: %s', msg)
 
     domains_list = cast(list[str], msg.get("domains"))
-    entities = get(hass, domains_list)
+    entities = get(hass, domains_list, True)
     result = entities.to_dict()
 
     connection.send_result(msg_id, result)

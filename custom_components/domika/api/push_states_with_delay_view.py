@@ -15,7 +15,7 @@ from . import service as api_service
 from ..push_data_storage.pushdatastorage import PUSHDATA_STORAGE
 
 
-class DomikaAPIPushStatesWithDelay(HomeAssistantView):
+class DomikaAPIPushStatesWithDelayView(HomeAssistantView):
     """Push state with delay endpoint."""
 
     url = "/domika/push_states_with_delay"
@@ -23,7 +23,7 @@ class DomikaAPIPushStatesWithDelay(HomeAssistantView):
 
     async def post(self, request: web.Request) -> web.Response:
         """Post method."""
-        LOGGER.verbose("DomikaAPIPushStatesWithDelay called.")
+        LOGGER.verbose("DomikaAPIPushStatesWithDelayView called.")
 
         # Check that integration still loaded.
         hass = async_get_hass()
@@ -45,7 +45,7 @@ class DomikaAPIPushStatesWithDelay(HomeAssistantView):
         need_push = None if ignore_need_push else True
 
         LOGGER.trace(
-            "DomikaAPIPushStatesWithDelay: request_dict: %s, app_session_id: %s",
+            "DomikaAPIPushStatesWithDelayView: request_dict: %s, app_session_id: %s",
             request_dict,
             app_session_id,
         )
@@ -61,6 +61,6 @@ class DomikaAPIPushStatesWithDelay(HomeAssistantView):
         )
 
         data = {"entities": result}
-        LOGGER.fine("DomikaAPIPushStatesWithDelay data: %s", data)
+        LOGGER.fine("DomikaAPIPushStatesWithDelayView data: %s", data)
 
         return self.json(data, HTTPStatus.OK)

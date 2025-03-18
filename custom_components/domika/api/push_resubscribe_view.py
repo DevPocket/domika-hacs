@@ -13,7 +13,7 @@ from ..domika_logger import LOGGER
 from ..storage import APP_SESSIONS_STORAGE
 
 
-class DomikaAPIPushResubscribe(HomeAssistantView):
+class DomikaAPIPushResubscribeView(HomeAssistantView):
     """View for subscriptions update."""
 
     url = "/domika/push_resubscribe"
@@ -21,7 +21,7 @@ class DomikaAPIPushResubscribe(HomeAssistantView):
 
     async def post(self, request: web.Request) -> web.Response:
         """Post method."""
-        LOGGER.verbose("DomikaAPIPushResubscribe called.")
+        LOGGER.verbose("DomikaAPIPushResubscribeView called.")
 
         # Check that integration still loaded.
         hass = async_get_hass()
@@ -38,7 +38,7 @@ class DomikaAPIPushResubscribe(HomeAssistantView):
             )
 
         LOGGER.trace(
-            "DomikaAPIPushResubscribe: request_dict: %s, app_session_id: %s",
+            "DomikaAPIPushResubscribeView: request_dict: %s, app_session_id: %s",
             request_dict,
             app_session_id,
         )
@@ -53,5 +53,5 @@ class DomikaAPIPushResubscribe(HomeAssistantView):
         APP_SESSIONS_STORAGE.resubscribe_push(app_session_id, subscriptions)
 
         data = {"result": "success"}
-        LOGGER.fine("DomikaAPIPushResubscribe data: %s", data)
+        LOGGER.fine("DomikaAPIPushResubscribeView data: %s", data)
         return self.json(data, HTTPStatus.OK)
