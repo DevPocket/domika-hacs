@@ -362,9 +362,9 @@ def get(hass: HomeAssistant, domains: list[str], include_hidden_disabled: bool) 
 
         single = get_single(hass, entity_id)
         if single:
-            if entity.hidden_by:
+            if entity and entity.hidden_by:
                 single.info["hidden"] = True
-            if entity.disabled_by:
+            if entity and entity.disabled_by:
                 single.info["disabled"] = True
             result.entities[entity_id] = single.info
     LOGGER.finest(
