@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from aiohttp import ClientTimeout
 import voluptuous as vol
+from homeassistant.auth.permissions.events import SUBSCRIBE_ALLOWLIST
 
 from homeassistant.components import network
 from homeassistant.components.cloud import (
@@ -129,7 +130,7 @@ async def websocket_domika_update_app_session(
 
     LOGGER.verbose('Got websocket message "update_app_session", data: %s', msg)
 
-    # Check that the app is compatible with current version.
+    # Check that the app is compatible with the current version.
     os_platform: str = msg.get("os_platform", "")
     os_version: str = msg.get("os_version", "")
     app_id: str = msg.get("app_id", "")
@@ -200,6 +201,9 @@ async def _update_app_session(
             "_update_app_session result_old_app_sessions: %s.",
             result_old_app_sessions,
         )
+
+    SUBSCRIBE_ALLOWLIST.add("domika_" + app_session_id)
+
     return new_app_session_id, result_old_app_sessions
 
 
@@ -519,6 +523,8 @@ async def websocket_domika_update_push_session_v2(
 async def _remove_app_session(hass: HomeAssistant, app_session_id: str) -> None:
     try:
         await _remove_push_session(hass, app_session_id)
+
+        SUBSCRIBE_ALLOWLIST.remove("domika_" + app_session_id)
 
         APP_SESSIONS_STORAGE.remove(app_session_id)
         LOGGER.debug('App session "%s" successfully removed', app_session_id)

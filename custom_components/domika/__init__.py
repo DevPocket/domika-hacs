@@ -7,6 +7,7 @@ from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from homeassistant.auth.permissions.events import SUBSCRIBE_ALLOWLIST
 from homeassistant.components import websocket_api
 from homeassistant.const import EVENT_STATE_CHANGED
 from homeassistant.helpers import config_validation as cv
@@ -72,6 +73,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         APP_SESSIONS_STORAGE.inactive_device_cleaner(),
         "inactive_device_cleaner",
     )
+
+    SUBSCRIBE_ALLOWLIST.add("domika_critical_sensors_changed")
 
     # Register Domika WebSocket commands.
     websocket_api.async_register_command(hass, device_router.websocket_domika_update_app_session,)
