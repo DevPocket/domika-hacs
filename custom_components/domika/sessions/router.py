@@ -202,7 +202,9 @@ async def _update_app_session(
             result_old_app_sessions,
         )
 
-    SUBSCRIBE_ALLOWLIST.add("domika_" + new_app_session_id)
+    event_name = "domika_" + new_app_session_id
+    SUBSCRIBE_ALLOWLIST.add(event_name)
+    LOGGER.trace("_update_app_session added to SUBSCRIBE_ALLOWLIST: %s.", event_name)
 
     return new_app_session_id, result_old_app_sessions
 
