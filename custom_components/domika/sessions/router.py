@@ -202,7 +202,7 @@ async def _update_app_session(
             result_old_app_sessions,
         )
 
-    SUBSCRIBE_ALLOWLIST.add("domika_" + app_session_id)
+    SUBSCRIBE_ALLOWLIST.add("domika_" + new_app_session_id)
 
     return new_app_session_id, result_old_app_sessions
 
