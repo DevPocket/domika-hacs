@@ -324,8 +324,13 @@ def _get_changed_attributes_from_event_data(event_data: EventStateChangedData) -
     old_attributes = flatten_json(old_state, exclude={"c", "lc", "lu"}) or {}
     new_attributes = flatten_json(new_state, exclude={"c", "lc", "lu"}) or {}
 
+    result: dict = {k: v for k, v in new_attributes.items() if (k, v) not in old_attributes.items()}
+    nullKeys = {k for k in old_attributes.keys() if k not in new_attributes}
+    for nullKey in nullKeys:
+        result[nullKey] = None
+
     # Calculate the changed attributes by subtracting old_state elements from new_state.
-    return {k: v for k, v in new_attributes.items() if (k, v) not in old_attributes.items()}
+    return result
 
 
 def _fire_critical_sensor_notification(

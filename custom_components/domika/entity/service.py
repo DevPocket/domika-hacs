@@ -91,6 +91,8 @@ def _capabilities_climate(hass: HomeAssistant, entity_id: str) -> set[str]:
         capabilities.add("humidity")
     if supported_features & ClimateEntityFeature.FAN_MODE:
         capabilities.add("fan")
+    if supported_features & ClimateEntityFeature.PRESET_MODE:
+        capabilities.add("preset")
 
     LOGGER.finest(
         "Entity.service._capabilities_climate, entity_id: %s, supported_features: %s, capabilities: %s",
