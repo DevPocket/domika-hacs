@@ -424,6 +424,18 @@ class AppSessionsStorage:
             if session_data.get('attributes', set()) & set(attributes)
         ]
 
+    def get_all_app_sessions(self) -> list[str]:
+        """
+        Get the list of all app_session_ids
+        Lock is not required as we are not accessing data directly, and cache is immutable.
+        """
+
+        return [
+            app_session_id
+            for app_session_id, data in self._data.items()
+        ]
+
+
     def delete_inactive(self, threshold):
         LOGGER.trace("AppSessionsStorage.delete_inactive started")
         self.rw_lock.acquire_write()

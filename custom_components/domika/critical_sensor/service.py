@@ -1,6 +1,6 @@
 """Critical sensor service."""
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Iterable
 
 from homeassistant.components import binary_sensor
 from homeassistant.const import ATTR_DEVICE_CLASS, STATE_ON
@@ -210,6 +210,48 @@ def critical_push_needed(hass: HomeAssistant, entity_id: str) -> bool:
             )
 
     return sensor_class in critical_device_classes_enabled
+
+
+def critical_push_sensors_present(hass: HomeAssistant) -> bool:
+    domain_data: dict[str, Any] | None = hass.data.get(DOMAIN)
+    critical_entities = domain_data.get("critical_entities", {}) if domain_data else {}
+    critical_included_entity_ids = critical_entities.get(
+        "critical_included_entity_ids",
+        [],
+    )
+
+    # If critical_included_entity_ids list is not empty — return True
+    if critical_included_entity_ids:
+        return True
+
+    # If some device classes are enabled — return True
+    for key, value in critical_entities.items():
+        if key in CRITICAL_PUSH_SETTINGS_DEVICE_CLASSES and value:
+            return True
+
+    # Otherwise return False
+    return False
+
+
+def _send_critical_push_sensors_present_changed_events(
+    hass: HomeAssistant,
+    sensors_present: bool,
+    app_session_ids: Iterable[str],
+):
+    for app_session in app_session_ids:
+        data = {
+                "d.type": "critical_push_sensors_present_changed",
+                "critical_push_sensors_present": sensors_present,
+            }
+        hass.bus.async_fire(
+            f"domika_{app_session}",
+            data
+        )
+        LOGGER.finest(
+            "critical_push_sensors_present_changed event fired: %s, data: %s"
+            f"domika_{app_session}",
+            data
+        )
 
 
 def notification_type(hass: HomeAssistant, entity_id: str) -> NotificationType | None:

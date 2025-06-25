@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.auth.permissions.events import SUBSCRIBE_ALLOWLIST
 from homeassistant.components import websocket_api
@@ -108,6 +108,8 @@ async def config_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
     """Handle options update."""
     # Reload entry.
     await hass.config_entries.async_reload(entry.entry_id)
+    LOGGER.trace("config_update_listener: config options changed")
+    critical_sensor_router.send_critical_push_sensors_present_changed_events(hass)
 
 
 async def async_unload_entry(hass: HomeAssistant, _entry: ConfigEntry) -> bool:

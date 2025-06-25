@@ -11,10 +11,11 @@ from homeassistant.components.websocket_api import (
 )
 from homeassistant.core import HomeAssistant
 
+from ..storage import APP_SESSIONS_STORAGE
 from ..const import SMILEY_HIDDEN_IDS_HASH_KEY, SMILEY_HIDDEN_IDS_KEY
 from ..domika_logger import LOGGER
 from .enums import NotificationType
-from .service import get_with_smiley
+from .service import get_with_smiley, critical_push_sensors_present, _send_critical_push_sensors_present_changed_events
 
 
 @websocket_command(
@@ -46,3 +47,12 @@ async def websocket_domika_critical_sensors(
 
     connection.send_result(msg_id, result)
     LOGGER.trace("Critical_sensors msg_id=%s data=%s", msg_id, result)
+
+
+def send_critical_push_sensors_present_changed_events(hass: HomeAssistant):
+    sensors_present = critical_push_sensors_present(hass)
+    LOGGER.verbose('send_critical_push_sensors_present_changed_events, sensors_present: %s', sensors_present)
+    app_session_ids = APP_SESSIONS_STORAGE.get_all_app_sessions()
+    LOGGER.verbose('send_critical_push_sensors_present_changed_events, app_session_ids: %s', app_session_ids)
+    _send_critical_push_sensors_present_changed_events(hass, sensors_present, app_session_ids)
+

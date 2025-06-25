@@ -26,6 +26,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from ..const import DOMAIN, PUSH_SERVER_TIMEOUT, PUSH_SERVER_URL
 from ..domika_logger import LOGGER
 from ..storage import APP_SESSIONS_STORAGE
+from ..critical_sensor import service as critical_sensor_service
 from .. import errors, push_server_errors
 from . import flow as sessions_flow
 
@@ -148,7 +149,8 @@ async def websocket_domika_update_app_session(
         push_token_hash = cast(str, msg.get("push_token_hash") or "")
         app_session_id = msg.get("app_session_id")
 
-        (app_session_id, old_app_session_ids) = await _update_app_session(
+        (app_session_id, old_app_session_ids, critical_push_sensors_present) = await _update_app_session(
+            hass,
             app_session_id,
             connection.user.id,
             push_token_hash,
@@ -156,6 +158,7 @@ async def websocket_domika_update_app_session(
         result = {
             "app_session_id": app_session_id,
             "old_app_session_ids": old_app_session_ids,
+            "critical_push_sensors_present": critical_push_sensors_present,
         }
         result.update(await _get_hass_network_properties(hass))
 
@@ -164,6 +167,7 @@ async def websocket_domika_update_app_session(
 
 
 async def _update_app_session(
+        hass: HomeAssistant,
         app_session_id: str,
         user_id: str,
         push_token_hash: str
@@ -206,7 +210,9 @@ async def _update_app_session(
     SUBSCRIBE_ALLOWLIST.add(event_name)
     LOGGER.trace("_update_app_session added to SUBSCRIBE_ALLOWLIST: %s.", event_name)
 
-    return new_app_session_id, result_old_app_sessions
+    critical_push_sensors_present = critical_sensor_service.critical_push_sensors_present(hass)
+
+    return new_app_session_id, result_old_app_sessions, critical_push_sensors_present
 
 
 async def _check_push_token(
