@@ -90,6 +90,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     websocket_api.async_register_command(hass,entity_router.websocket_domika_entity_list,)
     websocket_api.async_register_command(hass,entity_router.websocket_domika_entity_info,)
     websocket_api.async_register_command(hass,entity_router.websocket_domika_entity_state,)
+    websocket_api.async_register_command(hass,entity_router.websocket_domika_available_updates,)
     websocket_api.async_register_command(hass,key_value_router.websocket_domika_store_value,)
     websocket_api.async_register_command(hass,key_value_router.websocket_domika_get_value,)
     websocket_api.async_register_command(hass,key_value_router.websocket_domika_get_value_hash,)
