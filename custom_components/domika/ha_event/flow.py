@@ -14,6 +14,7 @@ from homeassistant.core import (
     EventStateChangedData,
     HomeAssistant,
 )
+from homeassistant.helpers.translation import async_get_translations
 
 from .. import statuses, push_server_errors
 from ..const import (
@@ -39,6 +40,15 @@ async def register_event(
     event_data: EventStateChangedData = event.data
     entity_id = event_data["entity_id"]
     attributes = _get_changed_attributes_from_event_data(event_data)
+
+    if entity_id.startswith("binary_sensor.") and "s" in attributes:
+        new_attributes = event_data["new_state"].as_compressed_state
+        device_class_attribute = new_attributes["a"]["device_class"]
+        stateValue = new_attributes["s"]
+        if device_class_attribute and stateValue:
+            language = hass.config.language
+            translations = await async_get_translations(hass, language, "entity_component", {"binary_sensor"})
+            attributes["a.s_loc"] = translations[f"component.binary_sensor.entity_component.{device_class_attribute}.state.{stateValue}"] or None
 
     LOGGER.trace(
         "register_event entity_id: %s, attributes: %s, time fired: %s",

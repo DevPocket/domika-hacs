@@ -9,6 +9,7 @@ from homeassistant.components.websocket_api import (
     websocket_command,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.translation import async_get_translations
 
 from ..domika_logger import LOGGER
 from ..storage import APP_SESSIONS_STORAGE
@@ -45,16 +46,26 @@ async def websocket_domika_resubscribe(
         state = hass.states.get(entity_id)
         if state:
             time_updated = max(state.last_changed, state.last_updated)
-            res_list.append(
-                {
-                    "entity_id": entity_id,
-                    "time_updated": time_updated,
-                    "attributes": flatten_json(
-                        state.as_compressed_state,
-                        exclude={"c", "lc", "lu"},
-                    ),
-                },
-            )
+
+            attributes = {
+                "entity_id": entity_id,
+                "time_updated": time_updated,
+                "attributes": flatten_json(
+                    state.as_compressed_state,
+                    exclude={"c", "lc", "lu"},
+                ),
+            }
+
+            if entity_id.startswith("binary_sensor."):
+                device_class_attribute = attributes["attributes"]["a.device_class"]
+                stateValue = attributes["attributes"]["s"]
+                if device_class_attribute and stateValue and (stateValue == "on" or stateValue == "off"):
+                    language = hass.config.language
+                    translations = await async_get_translations(hass, language, "entity_component", {"binary_sensor"})
+                    attributes["attributes"]["a.s_loc"] = translations[
+                        f"component.binary_sensor.entity_component.{device_class_attribute}.state.{stateValue}"] or None
+
+            res_list.append(attributes)
         else:
             LOGGER.debug(
                 "Websocket_domika_resubscribe requesting state of unknown entity: %s",
