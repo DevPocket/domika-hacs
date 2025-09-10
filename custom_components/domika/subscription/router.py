@@ -58,12 +58,15 @@ async def websocket_domika_resubscribe(
 
             if entity_id.startswith("binary_sensor."):
                 device_class_attribute = attributes["attributes"]["a.device_class"]
-                stateValue = attributes["attributes"]["s"]
-                if device_class_attribute and stateValue and (stateValue == "on" or stateValue == "off"):
+                state_value = attributes["attributes"]["s"]
+                if device_class_attribute and state_value and (state_value == "on" or state_value == "off"):
                     language = hass.config.language
                     translations = await async_get_translations(hass, language, "entity_component", {"binary_sensor"})
-                    attributes["attributes"]["a.s_loc"] = translations[
-                        f"component.binary_sensor.entity_component.{device_class_attribute}.state.{stateValue}"] or None
+                    translation_key = f"component.binary_sensor.entity_component.{device_class_attribute}.state.{state_value}"
+                    try:
+                        attributes["attributes"]["a.s_loc"] = translations[translation_key]
+                    except:
+                        attributes["attributes"]["a.s_loc"] = None
 
             res_list.append(attributes)
         else:

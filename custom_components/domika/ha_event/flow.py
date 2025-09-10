@@ -44,11 +44,15 @@ async def register_event(
     if entity_id.startswith("binary_sensor.") and "s" in attributes:
         new_attributes = event_data["new_state"].as_compressed_state
         device_class_attribute = new_attributes["a"]["device_class"]
-        stateValue = new_attributes["s"]
-        if device_class_attribute and stateValue:
+        state_value = new_attributes["s"]
+        if device_class_attribute and state_value:
             language = hass.config.language
             translations = await async_get_translations(hass, language, "entity_component", {"binary_sensor"})
-            attributes["a.s_loc"] = translations[f"component.binary_sensor.entity_component.{device_class_attribute}.state.{stateValue}"] or None
+            translation_key = f"component.binary_sensor.entity_component.{device_class_attribute}.state.{state_value}"
+            try:
+                attributes["a.s_loc"] = translations[translation_key]
+            except:
+                attributes["a.s_loc"] = None
 
     LOGGER.trace(
         "register_event entity_id: %s, attributes: %s, time fired: %s",
