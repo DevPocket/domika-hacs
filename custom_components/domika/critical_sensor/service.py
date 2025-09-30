@@ -155,7 +155,7 @@ def check_notification_type(
     critical_included_entity_ids = critical_entities.get(
         "critical_included_entity_ids",
         [],
-    )
+    ) if critical_entities else []
     # If user manually added entity to the list for critical pushes — it's CRITICAL for
     # us.
     if entity_id in critical_included_entity_ids and NotificationType.CRITICAL in types:
