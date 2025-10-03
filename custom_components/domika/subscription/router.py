@@ -57,7 +57,11 @@ async def websocket_domika_resubscribe(
             }
 
             if entity_id.startswith("binary_sensor."):
-                device_class_attribute = attributes["attributes"]["a.device_class"]
+                device_class_attribute: str | None
+                try:
+                    device_class_attribute = attributes["attributes"].get("a.device_class")
+                except:
+                    device_class_attribute = None
                 state_value = attributes["attributes"]["s"]
                 if device_class_attribute and state_value and (state_value == "on" or state_value == "off"):
                     language = hass.config.language

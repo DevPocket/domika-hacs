@@ -43,7 +43,11 @@ async def register_event(
 
     if entity_id.startswith("binary_sensor.") and "s" in attributes:
         new_attributes = event_data["new_state"].as_compressed_state
-        device_class_attribute = new_attributes["a"]["device_class"]
+        device_class_attribute: str | None
+        try:
+            device_class_attribute = new_attributes["a"].get("device_class")
+        except:
+            device_class_attribute = None
         state_value = new_attributes["s"]
         if device_class_attribute and state_value:
             language = hass.config.language
