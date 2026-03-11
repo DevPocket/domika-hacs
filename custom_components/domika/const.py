@@ -11,7 +11,7 @@ DOMAIN = "domika"
 # Reserved for future use
 DOMIKA_LOG_LEVEL = 'VERBOSE'
 
-PUSH_INTERVAL = timedelta(minutes=15)
+PUSH_INTERVAL = timedelta(minutes=25)
 
 PUSH_SERVER_URL = "https://pns.domika.app:8000/api/v1"
 # Seconds

@@ -50,22 +50,18 @@ class DomikaConfigFlow(ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
         """Create the options flow."""
-        return OptionsFlowHandler(config_entry)
+        return OptionsFlowHandler()
 
 
 class OptionsFlowHandler(OptionsFlow):
     """Handle an options flow for Domika."""
-
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
-        self.options = dict(config_entry.options)
 
     async def async_step_init(
         self,
         _user_input: dict[str, Any] | None = None,
     ) -> ConfigFlowResult:
         """Manage the options."""
+        self.options = dict(self.config_entry.options)
         return await self.async_step_critical_entities()
 
     async def async_step_critical_entities(
