@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Iterable
 from homeassistant.components import binary_sensor
 from homeassistant.const import ATTR_DEVICE_CLASS, STATE_ON
 from homeassistant.core import HomeAssistant, State
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from ..const import (
@@ -27,6 +28,29 @@ NOTIFICATION_TYPE_TO_CLASSES = {
     NotificationType.WARNING: WARNING_NOTIFICATION_DEVICE_CLASSES,
 }
 
+# Safety-related classes first: a device exposing e.g. smoke + battery is a smoke detector.
+DEVICE_TYPE_PRIORITY = (
+    "smoke",
+    "gas",
+    "carbon_monoxide",
+    "moisture",
+    "safety",
+    "tamper",
+    "problem",
+    "heat",
+    "cold",
+    "battery",
+)
+
+
+def device_type(device_classes: Iterable[str]) -> str | None:
+    """Pick the device type for a group of sensor device classes."""
+    device_classes = list(device_classes)
+    for device_class in DEVICE_TYPE_PRIORITY:
+        if device_class in device_classes:
+            return device_class
+    return device_classes[0] if device_classes else None
+
 
 def get(
     hass: HomeAssistant,
@@ -39,6 +63,8 @@ def get(
 
     entity_ids = hass.states.async_entity_ids(SENSORS_DOMAIN)
     entity_registry = er.async_get(hass)
+    device_registry = dr.async_get(hass)
+    device_classes_by_device_id: dict[str, list[str]] = {}
 
     domain_data: dict[str, Any] | None = hass.data.get(DOMAIN)
     critical_entities = domain_data.get("critical_entities", {}) if domain_data else {}
@@ -75,6 +101,10 @@ def get(
         if not device_class:
             continue
 
+        device = device_registry.async_get(entity.device_id) if entity.device_id else None
+        if device:
+            device_classes_by_device_id.setdefault(device.id, []).append(device_class)
+
         result.sensors.append(
             DomikaNotificationSensor(
                 entity_id=entity_id,
@@ -89,10 +119,16 @@ def get(
                     )
                     * 1e6,
                 ),
+                device_id=device.id if device else None,
+                device_name=(device.name_by_user or device.name) if device else None,
             ),
         )
         if sensor_state.state == STATE_ON:
             result.sensors_on.append(entity_id)
+
+    for sensor in result.sensors:
+        if sensor.device_id:
+            sensor.device_type = device_type(device_classes_by_device_id.get(sensor.device_id, []))
 
     LOGGER.finer("Critical_sensor.service.get result: %s", result)
     return result

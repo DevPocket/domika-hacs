@@ -17,6 +17,10 @@ class DomikaNotificationSensor(DataClassJSONMixin):
     device_class: str
     state: str
     timestamp: int
+    # Device info for grouping sensors in the app; absent when the entity has no device.
+    device_id: str | None = None
+    device_name: str | None = None
+    device_type: str | None = None
 
 
 @dataclass
