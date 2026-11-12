@@ -1,6 +1,6 @@
 <!-- prettier-ignore -->
-![GitHub Release](https://img.shields.io/github/v/release/devpocket/domika-hacs?style=for-the-badge)
-![GitHub License](https://img.shields.io/github/license/devpocket/domika-hacs?style=for-the-badge)
+![GitHub Release](https://img.shields.io/github/v/release/devpocket/domika-integration?style=for-the-badge)
+![GitHub License](https://img.shields.io/github/license/devpocket/domika-integration?style=for-the-badge)
 
 # Domika Integration for Home Assistant
 
@@ -10,7 +10,7 @@ Domika integration allows Domika mobile apps to communicate with your Home Assis
 
 Through the Marketplace (Home Assistant 2026.11 and later):
 
-[![Open in the Marketplace](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=DevPocket&repository=domika-hacs&category=integration)
+[![Open in the Marketplace](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=DevPocket&repository=domika-integration&category=integration)
 
 - Or open Settings → Marketplace and search for "Domika".
 - Install Domika.
@@ -18,7 +18,7 @@ Through the Marketplace (Home Assistant 2026.11 and later):
 
 Through HACS (before Home Assistant 2026.11):
 
-[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=DevPocket&repository=domika-hacs&category=integration)
+[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=DevPocket&repository=domika-integration&category=integration)
 
 - Or open HACS, search for "Domika" and press Download.
 - Restart Home Assistant.
