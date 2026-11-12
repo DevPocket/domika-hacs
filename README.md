@@ -8,14 +8,19 @@ Domika integration allows Domika mobile apps to communicate with your Home Assis
 
 ## Adding Domika
 
-Through HACS:
-- Ensure that HACS is installed.
-- Open HACS, tap the dots in upper-right corner and open "Custom Repositories".
-- In "Repository" field put: https://github.com/DevPocket/domika-hacs.git.
-- In "Type" field select "Integration".
-- Press "Add". Domika will appear below "Custom repositories" title.
-- Close "Custom Repositories" window, in HACS search field type "Domika".
-- Open Domika from the list, press Download.
+Through the Marketplace (Home Assistant 2026.11 and later):
+
+[![Open in the Marketplace](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=DevPocket&repository=domika-hacs&category=integration)
+
+- Or open Settings → Marketplace and search for "Domika".
+- Install Domika.
+- Restart Home Assistant.
+
+Through HACS (before Home Assistant 2026.11):
+
+[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=DevPocket&repository=domika-hacs&category=integration)
+
+- Or open HACS, search for "Domika" and press Download.
 - Restart Home Assistant.
 
 Manually:
