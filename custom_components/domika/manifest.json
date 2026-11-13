@@ -1,7 +1,7 @@
 {
   "domain": "domika",
   "name": "Domika",
-  "after_dependencies": ["hassio"],
+  "after_dependencies": ["cloud", "hassio"],
   "codeowners": ["@bealex", "@bmikle"],
   "config_flow": true,
   "dependencies": [

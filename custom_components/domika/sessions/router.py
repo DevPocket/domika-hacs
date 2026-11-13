@@ -1,6 +1,5 @@
 """Application sessions router."""
 
-from contextlib import suppress
 from typing import Any, cast
 
 from aiohttp import ClientTimeout
@@ -18,7 +17,6 @@ from homeassistant.components.websocket_api import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from ..const import DOMAIN, PUSH_SERVER_TIMEOUT, PUSH_SERVER_URL
 from ..domika_logger import LOGGER
@@ -29,9 +27,25 @@ from ..access import reject_foreign_session
 from . import flow as sessions_flow
 
 
+def _get_cloud_instance_url(hass: HomeAssistant) -> str | None:
+    """Return the Nabu Casa remote UI address on its *.ui.nabu.casa instance domain, if available."""
+    if "cloud" not in hass.config.components:
+        return None
+
+    # Imported only once cloud is set up: its module needs cloud's own requirements.
+    from homeassistant.components.cloud import (  # noqa: PLC0415
+        CloudNotAvailable,
+        async_remote_ui_url,
+    )
+
+    try:
+        return async_remote_ui_url(hass)
+    except CloudNotAvailable:
+        return None
+
+
 async def _get_hass_network_properties(hass: HomeAssistant) -> dict:
     instance_name = hass.config.location_name
-    cloud_url: str | None = None
 
     port = hass.http.server_port
 
@@ -43,8 +57,7 @@ async def _get_hass_network_properties(hass: HomeAssistant) -> dict:
     if is_hassio(hass) and (host_info := get_host_info(hass)):
         local_url = f"http://{host_info['hostname']}.local:{port}"
 
-    with suppress(NoURLAvailableError):
-        cloud_url = get_url(hass, require_cloud=True)
+    cloud_url = _get_cloud_instance_url(hass)
 
     announce_addresses = await network.async_get_announce_addresses(hass)
     local_ip_port = (
