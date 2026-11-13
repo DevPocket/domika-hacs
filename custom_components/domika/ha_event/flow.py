@@ -155,10 +155,8 @@ async def register_event(
             app_sessions_with_push_session
         )
         for item in app_sessions_with_push_session:
-            await _send_push_data(
-                async_get_clientsession(hass),
-                PUSH_SERVER_URL,
-                PUSH_SERVER_TIMEOUT,
+            await _try_send_push_data(
+                hass,
                 item.app_session_id,
                 item.push_session_id,
                 critical_alert_payload,
@@ -236,15 +234,13 @@ async def process_push_data(hass: HomeAssistant) -> None:
                     and current_push_session_id
                     and current_app_session_id
             ):
-                await _send_push_data(
-                    async_get_clientsession(hass),
-                    PUSH_SERVER_URL,
-                    PUSH_SERVER_TIMEOUT,
+                if await _try_send_push_data(
+                    hass,
                     current_app_session_id,
                     current_push_session_id,
                     events_dict,
-                )
-                app_sessions_ids_to_delete_list.append(current_app_session_id)
+                ):
+                    app_sessions_ids_to_delete_list.append(current_app_session_id)
             current_push_session_id = push_data_record.push_session_id
             current_app_session_id = push_data_record.app_session_id
             current_entity_id = None
@@ -266,21 +262,58 @@ async def process_push_data(hass: HomeAssistant) -> None:
             and current_push_session_id
             and current_app_session_id
     ):
-        await _send_push_data(
-            async_get_clientsession(hass),
-            PUSH_SERVER_URL,
-            PUSH_SERVER_TIMEOUT,
+        if await _try_send_push_data(
+            hass,
             current_app_session_id,
             current_push_session_id,
-            events_dict
-        )
-        app_sessions_ids_to_delete_list.append(current_app_session_id)
+            events_dict,
+        ):
+            app_sessions_ids_to_delete_list.append(current_app_session_id)
 
     # Remove all pushdata for all app_session_ids already processed
     PUSHDATA_STORAGE.remove_by_app_session_ids(app_sessions_ids_to_delete_list)
 
     # Decrease delay for all records left
     PUSHDATA_STORAGE.decrease_delay()
+
+
+async def _try_send_push_data(
+        hass: HomeAssistant,
+        app_session_id: str,
+        push_session_id: str,
+        payload: dict,
+        *,
+        critical: bool = False,
+) -> bool:
+    """Send push data to one session; log a failure instead of raising so other sessions still get theirs."""
+    try:
+        await _send_push_data(
+            async_get_clientsession(hass),
+            PUSH_SERVER_URL,
+            PUSH_SERVER_TIMEOUT,
+            app_session_id,
+            push_session_id,
+            payload,
+            critical=critical,
+        )
+    except push_server_errors.BadRequestError as e:
+        LOGGER.error(
+            'Can\'t push %sevents to app session "%s". Push server error. %s. %s',
+            "critical " if critical else "",
+            app_session_id,
+            e,
+            e.body,
+        )
+        return False
+    except (push_server_errors.DomikaPushServerError, TimeoutError) as e:
+        LOGGER.error(
+            'Can\'t push %sevents to app session "%s". Push server error. %r',
+            "critical " if critical else "",
+            app_session_id,
+            e,
+        )
+        return False
+    return True
 
 
 async def _send_push_data(
