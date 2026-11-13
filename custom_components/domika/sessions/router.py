@@ -382,52 +382,28 @@ async def _create_push_session(
             ClientTimeout(total=PUSH_SERVER_TIMEOUT),
         )
         LOGGER.debug(
-            "Push session creation process successfully initialized. "
-            'original_transaction_id="%s", platform="%s", push_environment="%s", '
-            'transaction_environment="%s", push_token="%s", app_session_id="%s" ',
-            original_transaction_id,
+            'Push session creation initialized, app_session_id="%s", platform="%s", '
+            'push_environment="%s", transaction_environment="%s"',
+            app_session_id,
             platform,
             push_environment,
             transaction_environment,
-            push_token,
-            app_session_id,
         )
     except ValueError as e:
         LOGGER.error(
-            "Can't initialize push session creation. "
-            'original_transaction_id="%s", platform="%s", push_environment="%s", '
-            'transaction_environment="%s", push_token="%s", app_session_id="%s" %s',
-            original_transaction_id,
-            platform,
-            push_environment,
-            transaction_environment,
-            push_token,
+            'Can\'t initialize push session creation, app_session_id="%s". %s',
             app_session_id,
             e,
         )
     except push_server_errors.DomikaPushServerError as e:
         LOGGER.error(
-            "Can't initialize push session creation. "
-            'original_transaction_id="%s", platform="%s", push_environment="%s", '
-            'transaction_environment="%s", push_token="%s", app_session_id="%s" Push server error. %s',
-            original_transaction_id,
-            platform,
-            push_environment,
-            transaction_environment,
-            push_token,
+            'Can\'t initialize push session creation, app_session_id="%s". Push server error. %s',
             app_session_id,
             e,
         )
     except Exception:  # noqa: BLE001
         LOGGER.error(
-            "Can't initialize push session creation. "
-            'original_transaction_id="%s", platform="%s", push_environment="%s", '
-            'transaction_environment="%s", push_token="%s", app_session_id="%s" Unhandled error',
-            original_transaction_id,
-            platform,
-            push_environment,
-            transaction_environment,
-            push_token,
+            'Can\'t initialize push session creation, app_session_id="%s". Unhandled error',
             app_session_id,
         )
 
@@ -454,7 +430,7 @@ async def websocket_domika_update_push_session(
         LOGGER.error('Got websocket message "update_push_session", msg_id is missing')
         return
 
-    LOGGER.verbose('Got websocket message "update_push_session", data: %s', msg)
+    LOGGER.verbose('Got websocket message "update_push_session", app_session_id: %s', msg.get("app_session_id"))
 
     if reject_foreign_session(connection, msg_id, msg.get("app_session_id")):
         return
@@ -509,7 +485,7 @@ async def websocket_domika_update_push_session_v2(
         LOGGER.error('Got websocket message "update_push_session_v2", msg_id is missing')
         return
 
-    LOGGER.verbose('Got websocket message "update_push_session_v2", data: %s', msg)
+    LOGGER.verbose('Got websocket message "update_push_session_v2", app_session_id: %s', msg.get("app_session_id"))
 
     if reject_foreign_session(connection, msg_id, msg.get("app_session_id")):
         return
@@ -613,27 +589,21 @@ async def _verify_push_session(
             ClientTimeout(total=PUSH_SERVER_TIMEOUT),
         )
         LOGGER.debug(
-            'Verification key "%s" for application "%s" successfully verified. '
-            'New push session id "%s". Push token hash "%s"',
-            verification_key,
+            'Push session for application "%s" verified. New push session id "%s". Push token hash "%s"',
             app_session_id,
             push_session_id,
             push_token_hash,
         )
     except (ValueError, errors.AppSessionIdNotFoundError) as e:
         LOGGER.error(
-            'Can\'t verify verification key "%s" for application "%s". '
-            'Push token hash "%s". %s',
-            verification_key,
+            'Can\'t verify push session for application "%s". Push token hash "%s". %s',
             app_session_id,
             push_token_hash,
             e,
         )
     except push_server_errors.BadRequestError as e:
         LOGGER.error(
-            'Can\'t verify verification key "%s" for application "%s". '
-            'Push server error. Push token hash "%s". %s. %s',
-            verification_key,
+            'Can\'t verify push session for application "%s". Push server error. Push token hash "%s". %s. %s',
             app_session_id,
             push_token_hash,
             e,
@@ -641,18 +611,14 @@ async def _verify_push_session(
         )
     except push_server_errors.DomikaPushServerError as e:
         LOGGER.error(
-            'Can\'t verify verification key "%s" for application "%s". '
-            'Push server error. Push token hash "%s". %s',
-            verification_key,
+            'Can\'t verify push session for application "%s". Push server error. Push token hash "%s". %s',
             app_session_id,
             push_token_hash,
             e,
         )
     except Exception:  # noqa: BLE001
         LOGGER.error(
-            'Can\'t verify verification key "%s" for application "%s". '
-            'Push token hash "%s". Unhandled error',
-            verification_key,
+            'Can\'t verify push session for application "%s". Push token hash "%s". Unhandled error',
             app_session_id,
             push_token_hash,
         )
@@ -678,7 +644,7 @@ async def websocket_domika_verify_push_session(
         LOGGER.error('Got websocket message "verify_push_session", msg_id is missing')
         return
 
-    LOGGER.verbose('Got websocket message "verify_push_session", data: %s', msg)
+    LOGGER.verbose('Got websocket message "verify_push_session", app_session_id: %s', msg.get("app_session_id"))
 
     if reject_foreign_session(connection, msg_id, msg.get("app_session_id")):
         return
