@@ -1,17 +1,13 @@
 """Application sessions router."""
 
-from typing import TYPE_CHECKING, Any, cast
+from contextlib import suppress
+from typing import Any, cast
 
 from aiohttp import ClientTimeout
 import voluptuous as vol
 from homeassistant.auth.permissions.events import SUBSCRIBE_ALLOWLIST
 
 from homeassistant.components import network
-from homeassistant.components.cloud import (
-    DOMAIN as CLOUD_DOMAIN,
-    CloudNotAvailable,
-    async_remote_ui_url,
-)
 from homeassistant.components.hassio import get_host_info
 from homeassistant.helpers.hassio import is_hassio
 from homeassistant.components.websocket_api import (
@@ -22,6 +18,7 @@ from homeassistant.components.websocket_api import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from ..const import DOMAIN, PUSH_SERVER_TIMEOUT, PUSH_SERVER_URL
 from ..domika_logger import LOGGER
@@ -31,14 +28,10 @@ from .. import errors, push_server_errors
 from ..access import reject_foreign_session
 from . import flow as sessions_flow
 
-if TYPE_CHECKING:
-    from hass_nabucasa import Cloud
-
 
 async def _get_hass_network_properties(hass: HomeAssistant) -> dict:
     instance_name = hass.config.location_name
     cloud_url: str | None = None
-    certificate_fingerprint: str | None = None
 
     port = hass.http.server_port
 
@@ -50,15 +43,8 @@ async def _get_hass_network_properties(hass: HomeAssistant) -> dict:
     if is_hassio(hass) and (host_info := get_host_info(hass)):
         local_url = f"http://{host_info['hostname']}.local:{port}"
 
-    if "cloud" in hass.config.components:
-        try:
-            cloud_url = async_remote_ui_url(hass)
-            if hass.data[CLOUD_DOMAIN]:
-                cloud: Cloud = hass.data[CLOUD_DOMAIN]
-                if cloud and cloud.remote.certificate:
-                    certificate_fingerprint = cloud.remote.certificate.fingerprint
-        except CloudNotAvailable:
-            cloud_url = None
+    with suppress(NoURLAvailableError):
+        cloud_url = get_url(hass, require_cloud=True)
 
     announce_addresses = await network.async_get_announce_addresses(hass)
     local_ip_port = (
@@ -72,7 +58,6 @@ async def _get_hass_network_properties(hass: HomeAssistant) -> dict:
         "external_url": external_url,
         "internal_url": internal_url,
         "cloud_url": cloud_url,
-        "certificate_fingerprint": certificate_fingerprint,
     }
 
     result = {k: v for k, v in result.items() if v is not None}

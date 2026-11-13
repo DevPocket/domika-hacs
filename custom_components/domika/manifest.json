@@ -8,7 +8,6 @@
     "api",
     "binary_sensor",
     "climate",
-    "cloud",
     "light",
     "network",
     "search",
