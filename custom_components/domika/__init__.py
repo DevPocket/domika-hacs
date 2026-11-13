@@ -37,6 +37,26 @@ if TYPE_CHECKING:
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
+WEBSOCKET_COMMANDS = (
+    device_router.websocket_domika_update_app_session,
+    device_router.websocket_domika_remove_app_session,
+    device_router.websocket_domika_update_push_token,
+    device_router.websocket_domika_update_push_session,
+    device_router.websocket_domika_update_push_session_v2,
+    device_router.websocket_domika_verify_push_session,
+    device_router.websocket_domika_remove_push_session,
+    subscription_router.websocket_domika_resubscribe,
+    ha_event_router.websocket_domika_confirm_events,
+    critical_sensor_router.websocket_domika_critical_sensors,
+    entity_router.websocket_domika_entity_list,
+    entity_router.websocket_domika_entity_info,
+    entity_router.websocket_domika_entity_state,
+    entity_router.websocket_domika_available_updates,
+    key_value_router.websocket_domika_store_value,
+    key_value_router.websocket_domika_get_value,
+    key_value_router.websocket_domika_get_value_hash,
+)
+
 
 async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
     """Set up component."""
@@ -76,24 +96,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     SUBSCRIBE_ALLOWLIST.add("domika_critical_sensors_changed")
 
-    # Register Domika WebSocket commands.
-    websocket_api.async_register_command(hass, device_router.websocket_domika_update_app_session,)
-    websocket_api.async_register_command(hass, device_router.websocket_domika_remove_app_session,)
-    websocket_api.async_register_command(hass, device_router.websocket_domika_update_push_token,)
-    websocket_api.async_register_command(hass, device_router.websocket_domika_update_push_session,)
-    websocket_api.async_register_command(hass, device_router.websocket_domika_update_push_session_v2,)
-    websocket_api.async_register_command(hass, device_router.websocket_domika_verify_push_session,)
-    websocket_api.async_register_command(hass, device_router.websocket_domika_remove_push_session,)
-    websocket_api.async_register_command(hass, subscription_router.websocket_domika_resubscribe,)
-    websocket_api.async_register_command(hass, ha_event_router.websocket_domika_confirm_events,)
-    websocket_api.async_register_command(hass, critical_sensor_router.websocket_domika_critical_sensors,)
-    websocket_api.async_register_command(hass, entity_router.websocket_domika_entity_list,)
-    websocket_api.async_register_command(hass, entity_router.websocket_domika_entity_info,)
-    websocket_api.async_register_command(hass, entity_router.websocket_domika_entity_state,)
-    websocket_api.async_register_command(hass, entity_router.websocket_domika_available_updates,)
-    websocket_api.async_register_command(hass, key_value_router.websocket_domika_store_value,)
-    websocket_api.async_register_command(hass, key_value_router.websocket_domika_get_value,)
-    websocket_api.async_register_command(hass, key_value_router.websocket_domika_get_value_hash,)
+    for handler in WEBSOCKET_COMMANDS:
+        websocket_api.async_register_command(hass, handler)
 
     # Register config update callback.
     entry.async_on_unload(entry.add_update_listener(config_update_listener))
@@ -116,24 +120,9 @@ async def config_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
 async def async_unload_entry(hass: HomeAssistant, _entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     LOGGER.debug("Entry unloading")
-    # Unregister Domika WebSocket commands.
     websocket_api_handlers: dict = hass.data.get(websocket_api.DOMAIN, {})
-    websocket_api_handlers.pop("domika/update_app_session", None)
-    websocket_api_handlers.pop("domika/remove_app_session", None)
-    websocket_api_handlers.pop("domika/update_push_token", None)
-    websocket_api_handlers.pop("domika/update_push_session", None)
-    websocket_api_handlers.pop("domika/update_push_session_v2", None)
-    websocket_api_handlers.pop("domika/verify_push_session", None)
-    websocket_api_handlers.pop("domika/remove_push_session", None)
-    websocket_api_handlers.pop("domika/resubscribe", None)
-    websocket_api_handlers.pop("domika/confirm_event", None)
-    websocket_api_handlers.pop("domika/critical_sensors", None)
-    websocket_api_handlers.pop("domika/entity_list", None)
-    websocket_api_handlers.pop("domika/entity_info", None)
-    websocket_api_handlers.pop("domika/entity_state", None)
-    websocket_api_handlers.pop("domika/store_value", None)
-    websocket_api_handlers.pop("domika/get_value", None)
-    websocket_api_handlers.pop("domika/get_value_hash", None)
+    for handler in WEBSOCKET_COMMANDS:
+        websocket_api_handlers.pop(handler._ws_command, None)  # noqa: SLF001
 
     # Cancel Domika event listening.
     if (domika_data := hass.data.get(DOMAIN)) and (
