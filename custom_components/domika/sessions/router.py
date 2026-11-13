@@ -521,7 +521,7 @@ async def _remove_app_session(hass: HomeAssistant, app_session_id: str) -> None:
     try:
         await _remove_push_session(hass, app_session_id)
 
-        SUBSCRIBE_ALLOWLIST.remove("domika_" + app_session_id)
+        SUBSCRIBE_ALLOWLIST.discard("domika_" + app_session_id)
 
         APP_SESSIONS_STORAGE.remove(app_session_id)
         LOGGER.debug('App session "%s" successfully removed', app_session_id)
