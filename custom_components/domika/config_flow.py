@@ -31,7 +31,7 @@ class DomikaConfigFlow(ConfigFlow, domain=DOMAIN):
         del user_input
 
         return self.async_create_entry(
-            title=DOMAIN,
+            title="Domika",
             # Data is immutable options.
             data={},
             # Default options.
