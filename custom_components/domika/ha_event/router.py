@@ -10,6 +10,7 @@ from homeassistant.components.websocket_api import (
 )
 from homeassistant.core import HomeAssistant
 
+from ..access import reject_foreign_session
 from ..domika_logger import LOGGER
 from ..push_data_storage.pushdatastorage import PUSHDATA_STORAGE
 
@@ -34,6 +35,9 @@ async def websocket_domika_confirm_events(
         return
 
     LOGGER.verbose('Got websocket message "confirm_event", data: %s', msg)
+
+    if reject_foreign_session(connection, msg_id, msg.get("app_session_id")):
+        return
 
     # Fast send reply.
     connection.send_result(msg_id, {"result": "accepted"})

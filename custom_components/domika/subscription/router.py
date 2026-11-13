@@ -11,6 +11,7 @@ from homeassistant.components.websocket_api import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.translation import async_get_translations
 
+from ..access import reject_foreign_session
 from ..domika_logger import LOGGER
 from ..storage import APP_SESSIONS_STORAGE
 from ..push_data_storage.pushdatastorage import PUSHDATA_STORAGE
@@ -38,6 +39,9 @@ async def websocket_domika_resubscribe(
 
     app_session_id = msg.get("app_session_id")
     LOGGER.verbose('Got websocket message "resubscribe", msg_id:%s, app_session_id: %s', msg_id, app_session_id)
+
+    if reject_foreign_session(connection, msg_id, app_session_id):
+        return
     LOGGER.fine('Got websocket message "resubscribe", data: %s', msg)
 
     res_list = []

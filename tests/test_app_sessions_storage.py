@@ -25,3 +25,21 @@ def test_remove_all_with_push_token_hash_removes_every_match(app_sessions):
     app_sessions.remove_all_with_push_token_hash("h", "keep")
 
     assert sorted(app_sessions.get_all_app_sessions()) == ["keep", "other"]
+
+
+def test_belongs_to_other_user(app_sessions):
+    add_session(app_sessions, "s", "u1")
+
+    assert not app_sessions.belongs_to_other_user("s", "u1")
+    assert app_sessions.belongs_to_other_user("s", "u2")
+    assert not app_sessions.belongs_to_other_user("missing", "u2")
+
+
+def test_shares_device_with_user(app_sessions):
+    add_session(app_sessions, "theirs", "u2", push_token_hash="h")
+    add_session(app_sessions, "mine", "u1", push_token_hash="h")
+    add_session(app_sessions, "no_hash", "u2")
+
+    assert app_sessions.shares_device_with_user("theirs", "u1")
+    assert not app_sessions.shares_device_with_user("theirs", "u3")
+    assert not app_sessions.shares_device_with_user("no_hash", "u1")

@@ -28,6 +28,7 @@ from ..domika_logger import LOGGER
 from ..storage import APP_SESSIONS_STORAGE
 from ..critical_sensor import service as critical_sensor_service
 from .. import errors, push_server_errors
+from ..access import reject_foreign_session
 from . import flow as sessions_flow
 
 if TYPE_CHECKING:
@@ -268,6 +269,9 @@ async def websocket_domika_update_push_token(
 
     LOGGER.verbose('Got websocket message "update_push_token", data: %s', msg)
 
+    if reject_foreign_session(connection, msg_id, msg.get("app_session_id")):
+        return
+
     # Fast send reply.
     connection.send_result(msg_id, {"result": "accepted"})
     LOGGER.trace("Update_push_token msg_id=%s data=%s", msg_id, {"result": "accepted"})
@@ -335,6 +339,9 @@ async def websocket_domika_remove_push_session(
         return
 
     LOGGER.verbose('Got websocket message "remove_push_session", data: %s', msg)
+
+    if reject_foreign_session(connection, msg_id, msg.get("app_session_id")):
+        return
 
     # Fast send reply.
     res = {"result": "accepted"}
@@ -449,6 +456,9 @@ async def websocket_domika_update_push_session(
 
     LOGGER.verbose('Got websocket message "update_push_session", data: %s', msg)
 
+    if reject_foreign_session(connection, msg_id, msg.get("app_session_id")):
+        return
+
     # Fast send reply.
     connection.send_result(msg_id, {"result": "accepted"})
     LOGGER.trace(
@@ -500,6 +510,9 @@ async def websocket_domika_update_push_session_v2(
         return
 
     LOGGER.verbose('Got websocket message "update_push_session_v2", data: %s', msg)
+
+    if reject_foreign_session(connection, msg_id, msg.get("app_session_id")):
+        return
 
     # Fast send reply.
     connection.send_result(msg_id, {"result": "accepted"})
@@ -564,6 +577,9 @@ async def websocket_domika_remove_app_session(
         return
 
     LOGGER.verbose('Got websocket message "remove_app_session", data: %s', msg)
+
+    if reject_foreign_session(connection, msg_id, msg.get("app_session_id"), allow_same_device=True):
+        return
 
     # Fast send reply.
     connection.send_result(msg_id, {"result": "accepted"})
@@ -663,6 +679,9 @@ async def websocket_domika_verify_push_session(
         return
 
     LOGGER.verbose('Got websocket message "verify_push_session", data: %s', msg)
+
+    if reject_foreign_session(connection, msg_id, msg.get("app_session_id")):
+        return
 
     # Fast send reply.
     connection.send_result(msg_id, {"result": "accepted"})

@@ -5,9 +5,11 @@ from typing import Any
 
 from aiohttp import web
 
+from homeassistant.components.http import KEY_HASS_USER
 from homeassistant.core import async_get_hass
 from homeassistant.helpers.http import HomeAssistantView
 
+from ..access import is_foreign_session
 from ..const import DOMAIN
 from ..domika_logger import LOGGER
 from ..storage import APP_SESSIONS_STORAGE
@@ -34,6 +36,11 @@ class DomikaAPIPushResubscribeView(HomeAssistantView):
         if not app_session_id:
             return self.json_message(
                 "Missing X-App-Session-Id.",
+                HTTPStatus.UNAUTHORIZED,
+            )
+        if is_foreign_session(app_session_id, request[KEY_HASS_USER].id):
+            return self.json_message(
+                "App session belongs to another user.",
                 HTTPStatus.UNAUTHORIZED,
             )
 

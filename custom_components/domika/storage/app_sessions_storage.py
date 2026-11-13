@@ -251,6 +251,23 @@ class AppSessionsStorage:
             self.rw_lock.release_write()
             self._save_app_sessions_data()
 
+    def belongs_to_other_user(self, app_session_id: str, user_id: str) -> bool:
+        """Return True if the app session exists and is owned by another user."""
+        app_session = self.get_app_session(app_session_id)
+        return app_session is not None and app_session.user_id != user_id
+
+    def shares_device_with_user(self, app_session_id: str, user_id: str) -> bool:
+        """Return True if a session of the user has the same push token hash as the app session."""
+        self.rw_lock.acquire_read()
+        try:
+            push_token_hash = (self._data.get(app_session_id) or {}).get("push_token_hash")
+            return bool(push_token_hash) and any(
+                data.get("user_id") == user_id and data.get("push_token_hash") == push_token_hash
+                for data in self._data.values()
+            )
+        finally:
+            self.rw_lock.release_read()
+
     # Remove all app_session records with given push_token
     # except one given app_session_id
     def remove_all_with_push_token_hash(
