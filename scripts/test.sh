@@ -7,7 +7,7 @@
 #   scripts/test.sh -k storage      # any pytest arguments are passed through
 #   scripts/test.sh --full          # also print the whole pytest output
 #
-# Creates .venv and installs requirements_test.txt when they are missing or changed.
+# Creates .venv (Python 3.14, or $PYTHON) and installs requirements_test.txt when either is missing or changed.
 # The full output of every run is kept in .test-logs/last.log.
 #
 set -uo pipefail
@@ -18,7 +18,7 @@ REQUIREMENTS="$ROOT/requirements_test.txt"
 STAMP="$VENV/.requirements_test.sha"
 LOG_DIR="$ROOT/.test-logs"
 LOG="$LOG_DIR/last.log"
-PYTHON_BIN="${PYTHON:-python3.13}"
+PYTHON_BIN="${PYTHON:-python3.14}"
 
 if [[ -t 1 ]]; then
   BOLD=$'\033[1m'
@@ -47,9 +47,20 @@ for arg in "$@"; do
   esac
 done
 
+python_version() {
+  "$1" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null
+}
+
 prepare_venv() {
-  if [[ ! -x "$VENV/bin/python" ]]; then
+  local expected
+  expected="$(python_version "$PYTHON_BIN")"
+  if [[ -z "$expected" ]]; then
+    printf '%s❌ %s not found (set PYTHON to override)%s\n' "$RED" "$PYTHON_BIN" "$RST" >&2
+    return 1
+  fi
+  if [[ "$(python_version "$VENV/bin/python")" != "$expected" ]]; then
     printf '%s▸ creating .venv with %s%s\n' "$DIM" "$PYTHON_BIN" "$RST"
+    rm -rf "$VENV"
     "$PYTHON_BIN" -m venv "$VENV" || return 1
   fi
   local wanted
