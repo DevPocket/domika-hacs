@@ -260,7 +260,7 @@ class AppSessionsStorage:
     ):
         self.rw_lock.acquire_write()
         try:
-            for app_session_id, data in self._data.items():
+            for app_session_id, data in list(self._data.items()):
                 if app_session_id != except_app_session_id and data.get("push_token_hash") == push_token_hash:
                     self._data.pop(app_session_id, None)
             self._update_subscriptions_caches()
@@ -440,7 +440,7 @@ class AppSessionsStorage:
         LOGGER.trace("AppSessionsStorage.delete_inactive started")
         self.rw_lock.acquire_write()
         try:
-            for app_session_id, data in self._data.items():
+            for app_session_id, data in list(self._data.items()):
                 last_update_int = data.get('last_update')
 
                 if last_update_int is None:
