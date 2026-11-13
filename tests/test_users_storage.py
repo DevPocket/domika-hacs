@@ -58,8 +58,8 @@ def test_users_storage_update_and_get_data():
     # Verify the record for user_456
     result_3 = users_storage.get_users_data(user_id_2, key_1)
     assert result_3 is not None
-    assert result_3.value == value_1
-    assert result_3.value_hash == value_hash_1
+    assert result_3.value == value_3
+    assert result_3.value_hash == value_hash_3
 
     result = users_storage.get_users_data(user_id_1, "non_existent_key")
     assert result is None

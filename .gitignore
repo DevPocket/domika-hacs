@@ -15,3 +15,4 @@
 .idea/**
 /tests/Domika.db
 /tests/domika.json
+.test-logs/
