@@ -4,7 +4,7 @@
 
 # Domika Integration for Home Assistant
 
-Domika integration allows Domika mobile apps to communicate with your Home Assistance and is required for Domika mobile applications to work.
+Domika integration allows Domika mobile apps to communicate with your Home Assistant and is required for Domika mobile applications to work.
 
 ## Adding Domika
 
@@ -35,7 +35,6 @@ Manually:
 - Open Home Assistant settings -> Devices & services.
 - Press "Add Integration", search for Domika.
 - Install Domika from the list.
-- Restart Home Assistant.
 
 ## Configuration
 To configure Domika, open Domika integration from the list of your integrations and press "Configure". Select domains and/or entities you want to trigger critical push notifications.   
